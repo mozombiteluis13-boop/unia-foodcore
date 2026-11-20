@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
 {
     Schema::table('consumos', function (Blueprint $table) {
-        $table->string('estado')->default('pendiente')->after('pedido');
+        $table->string('estado')->default('pendiente');
     });
 }
 

@@ -35,14 +35,23 @@
     <div class="bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl p-8 md:p-10 mb-12 relative overflow-hidden">
         <div class="absolute -left-10 -bottom-10 w-48 h-48 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none"></div>
 
-        <div class="flex items-center gap-4 mb-8 pb-6 border-b border-slate-800 relative z-10">
-            <div class="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-2xl text-amber-400 font-bold shadow-inner">
-                🍽️
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 pb-6 border-b border-slate-800 relative z-10">
+            <div class="flex items-center gap-4">
+                <div class="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-2xl text-amber-400 font-bold shadow-inner">
+                    🍽️
+                </div>
+                <div>
+                    <h3 class="font-black text-base text-white tracking-wide uppercase">Publicar Nuevo Plato o Bebida</h3>
+                    <p class="text-xs text-slate-400 mt-1">Configura los parámetros del menú diario para habilitar el consumo automático de los estudiantes.</p>
+                </div>
             </div>
-            <div>
-                <h3 class="font-black text-base text-white tracking-wide uppercase">Publicar Nuevo Plato o Bebida</h3>
-                <p class="text-xs text-slate-400 mt-1">Configura los parámetros del menú diario para habilitar el consumo automático de los estudiantes.</p>
-            </div>
+
+            @if($turno === 'Almuerzo')
+                <label class="inline-flex items-center gap-3 px-4 py-3 rounded-2xl bg-slate-950 border {{ $esExtra ? 'border-amber-500/60 text-amber-300' : 'border-slate-700 text-slate-300' }} cursor-pointer select-none transition">
+                    <input type="checkbox" wire:model.live="esExtra" class="rounded bg-slate-800 border-slate-600 text-amber-500 focus:ring-amber-500/30 w-4 h-4 cursor-pointer">
+                    <span class="text-xs font-black uppercase tracking-wider">⚡ Modalidad Extra (Plato / Bebida)</span>
+                </label>
+            @endif
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-5 gap-6 items-start relative z-10">
@@ -64,18 +73,22 @@
                     @if($turno === 'Desayuno')
                         <option value="BEBIDAS" class="bg-slate-900 text-white">🥤 Bebidas</option>
                         <option value="PANES" class="bg-slate-900 text-white">🥪 Panes</option>
+                    @elseif($esExtra)
+                        <option value="Plato" class="bg-slate-900 text-white">🍽️ Plato Extra</option>
+                        <option value="Bebida" class="bg-slate-900 text-white">🥤 Bebida Extra</option>
                     @else
                         <option value="PLATOS DE FONDO" class="bg-slate-900 text-white">🍲 Plato de Fondo</option>
                         <option value="BEBIDAS" class="bg-slate-900 text-white">🥤 Bebidas</option>
                         <option value="POSTRES" class="bg-slate-900 text-white">🍮 Postres</option>
                     @endif
                 </select>
+                @error('categoria') <span class="block text-[11px] text-rose-400 font-bold mt-1.5 flex items-center gap-1">⚠️ {{ $message }}</span> @enderror
             </div>
 
             <!-- 3. Nombre -->
             <div class="space-y-2">
                 <label class="block text-[11px] font-black text-slate-400 uppercase tracking-widest">Nombre del Ítem</label>
-                <input type="text" wire:model="nombre" placeholder="Ej. Seco de Pollo" class="w-full bg-slate-950 border border-slate-700 rounded-2xl text-xs font-bold p-4 text-white shadow-inner focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition placeholder:text-slate-500">
+                <input type="text" wire:model="nombre" placeholder="{{ ($turno === 'Almuerzo' && $esExtra) ? 'Ej. Chicharrón / Chicha Extra' : 'Ej. Seco de Pollo' }}" class="w-full bg-slate-950 border border-slate-700 rounded-2xl text-xs font-bold p-4 text-white shadow-inner focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition placeholder:text-slate-500">
                 @error('nombre') <span class="block text-[11px] text-rose-400 font-bold mt-1.5 flex items-center gap-1">⚠️ {{ $message }}</span> @enderror
             </div>
 
@@ -87,10 +100,12 @@
             </div>
 
             <!-- 5. Precio Unitario -->
-            @if($turno === 'Desayuno' || ($turno === 'Almuerzo' && stripos($categoria, 'Fondo') !== false))
+            @if(($turno === 'Almuerzo' && $esExtra) || $turno === 'Desayuno' || ($turno === 'Almuerzo' && stripos($categoria, 'Fondo') !== false))
                 <div class="space-y-2">
-                    <label class="block text-[11px] font-black text-slate-400 uppercase tracking-widest">Precio Unitario</label>
-                    <input type="number" step="0.50" wire:model="precio" min="0" placeholder="Ej. 2.50" class="w-full bg-slate-950 border border-slate-700 rounded-2xl text-xs font-bold p-4 text-white shadow-inner focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition placeholder:text-slate-500">
+                    <label class="block text-[11px] font-black text-slate-400 uppercase tracking-widest">
+                        Precio Unitario {{ ($turno === 'Almuerzo' && $esExtra) ? '(Obligatorio)' : '' }}
+                    </label>
+                    <input type="number" step="0.50" wire:model="precio" min="{{ ($turno === 'Almuerzo' && $esExtra) ? '0.50' : '0' }}" placeholder="Ej. 3.50" class="w-full bg-slate-950 border border-slate-700 rounded-2xl text-xs font-bold p-4 text-white shadow-inner focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition placeholder:text-slate-500">
                     @error('precio') <span class="block text-[11px] text-rose-400 font-bold mt-1.5 flex items-center gap-1">⚠️ {{ $message }}</span> @enderror
                 </div>
             @endif
@@ -155,10 +170,15 @@
                             @foreach($items as $item)
                                 <div class="border border-slate-800 rounded-2xl p-4.5 bg-slate-950/70 hover:bg-slate-800/40 transition-all shadow-md flex justify-between items-center relative overflow-hidden group">
                                     <div class="space-y-2">
-                                        <div class="flex items-center gap-2">
+                                        <div class="flex items-center gap-2 flex-wrap">
                                             <span class="text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-md bg-slate-800 text-slate-300 border border-slate-700">
                                                 {{ $item->turno ?? 'General' }}
                                             </span>
+                                            @if($item->es_extra ?? false)
+                                                <span class="text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                                                    EXTRA
+                                                </span>
+                                            @endif
                                         </div>
                                         
                                         <h5 class="text-sm font-extrabold text-slate-100 group-hover:text-amber-300 transition-colors">{{ $item->nombre }}</h5>

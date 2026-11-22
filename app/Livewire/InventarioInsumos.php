@@ -3,13 +3,13 @@
 namespace App\Livewire;
 
 use Livewire\Component;
-use Carbon\Carbon;
 use App\Models\Insumo;
 
 class InventarioInsumos extends Component
 {
     public $turno = 'Desayuno';
-    public $categoria = 'Bebida';
+    public $esExtra = false;
+    public $categoria = 'BEBIDAS';
     public $nombre;
     public $cantidad;
     public $unidad = 'Porción';
@@ -17,11 +17,25 @@ class InventarioInsumos extends Component
 
     protected function rules()
     {
-        // Si es Almuerzo y la categoría es Postres o Bebidas, el precio es opcional (nullable)
-        $esPostreOBebidaAlmuerzo = ($this->turno === 'Almuerzo' && in_array($this->categoria, ['Postres', 'Bebidas']));
+        $esExtraAlmuerzo = ($this->turno === 'Almuerzo' && $this->esExtra);
+
+        if ($esExtraAlmuerzo) {
+            return [
+                'turno'     => 'required|string',
+                'esExtra'   => 'boolean',
+                'categoria' => 'required|in:Plato,Bebida',
+                'nombre'    => 'required|string|max:255',
+                'cantidad'  => 'required|integer|min:1',
+                'precio'    => 'required|numeric|min:0.50',
+            ];
+        }
+
+        // Si es Almuerzo normal y la categoría es POSTRES o BEBIDAS, el precio es opcional
+        $esPostreOBebidaAlmuerzo = ($this->turno === 'Almuerzo' && in_array($this->categoria, ['POSTRES', 'BEBIDAS']));
 
         return [
             'turno'     => 'required|string',
+            'esExtra'   => 'boolean',
             'categoria' => 'required|string',
             'nombre'    => 'required|string|max:255',
             'cantidad'  => 'required|integer|min:1',
@@ -33,43 +47,62 @@ class InventarioInsumos extends Component
     public function updatedTurno($value)
     {
         if ($value === 'Desayuno') {
-            $this->categoria = 'Bebida';
+            $this->esExtra = false;
+            $this->categoria = 'BEBIDAS';
         } else {
-            $this->categoria = 'Plato de Fondo / Comida';
+            $this->categoria = $this->esExtra ? 'Plato' : 'PLATOS DE FONDO';
         }
+    }
+
+    // Se ejecuta al marcar o desmarcar Extra
+    public function updatedEsExtra($value)
+    {
+        if ($this->turno !== 'Almuerzo') {
+            $this->esExtra = false;
+            $this->categoria = 'BEBIDAS';
+            return;
+        }
+
+        $this->categoria = $value ? 'Plato' : 'PLATOS DE FONDO';
     }
 
     public function guardarInsumo()
     {
-        // Si es desayuno, sí exige precio. Si es almuerzo, solo exige precio si dice "Fondo".
-        $exigePrecio = ($this->turno === 'Desayuno' || ($this->turno === 'Almuerzo' && stripos($this->categoria, 'Fondo') !== false));
+        $esExtraAlmuerzo = ($this->turno === 'Almuerzo' && $this->esExtra);
+
+        // Si es Extra en Almuerzo, siempre exige precio; en menú normal mantiene tu regla
+        $exigePrecio = $esExtraAlmuerzo
+            || $this->turno === 'Desayuno'
+            || ($this->turno === 'Almuerzo' && stripos($this->categoria, 'Fondo') !== false);
 
         $rules = [
             'turno'     => 'required|string',
-            'categoria' => 'required|string',
+            'esExtra'   => 'boolean',
+            'categoria' => $esExtraAlmuerzo ? 'required|in:Plato,Bebida' : 'required|string',
             'nombre'    => 'required|string|max:255',
             'cantidad'  => 'required|integer|min:1',
         ];
 
         if ($exigePrecio) {
-            $rules['precio'] = 'required|numeric|min:0';
+            $rules['precio'] = $esExtraAlmuerzo ? 'required|numeric|min:0.50' : 'required|numeric|min:0';
         }
 
         $this->validate($rules);
 
-        // Si exige precio guarda lo escrito, si no, guarda 0 automáticamente
         $precioFinal = $exigePrecio ? $this->precio : 0;
 
         Insumo::create([
             'turno'     => $this->turno,
-            'categoria' => $this->categoria, 
+            'es_extra'  => $esExtraAlmuerzo,
+            'categoria' => $this->categoria,
             'nombre'    => $this->nombre,
             'cantidad'  => $this->cantidad,
             'unidad'    => $this->unidad,
             'precio'    => $precioFinal,
         ]);
 
-        $this->reset(['nombre', 'cantidad', 'precio']);
+        $this->reset(['nombre', 'cantidad', 'precio', 'esExtra']);
+        $this->updatedTurno($this->turno);
         session()->flash('exito', '¡Menú publicado correctamente!');
     }
 

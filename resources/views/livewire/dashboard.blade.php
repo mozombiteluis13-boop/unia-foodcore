@@ -182,6 +182,46 @@
                 </a>
             </div>
         </div>
+
+        <!-- MÓDULO 5: GRÁFICO EN TIEMPO REAL DE PEDIDOS POR HORA (HOY) -->
+        @php
+            $hoyLima = \Carbon\Carbon::today('America/Lima');
+            $horasLabels = ['06:00', '07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00'];
+            $consumosHoy = \App\Models\Consumo::whereDate('created_at', $hoyLima)->get();
+            $seriePedidosHora = [];
+            $serieCanceladosHora = [];
+            foreach (range(6, 16) as $h) {
+                $deHora = $consumosHoy->filter(function ($c) use ($h) {
+                    $horaReg = (int) \Carbon\Carbon::parse($c->created_at)->setTimezone('America/Lima')->format('H');
+                    return $horaReg === $h;
+                });
+                $seriePedidosHora[] = $deHora->where('estado', '!=', 'cancelado')->count();
+                $serieCanceladosHora[] = $deHora->where('estado', 'cancelado')->count();
+            }
+        @endphp
+        <div wire:poll.5s class="lg:col-span-12 bg-slate-900/90 backdrop-blur-xl p-8 lg:p-10 rounded-3xl border border-slate-800 shadow-2xl relative overflow-hidden"
+             data-labels='@json($horasLabels)'
+             data-pedidos='@json($seriePedidosHora)'
+             data-cancelados='@json($serieCanceladosHora)'>
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                <div>
+                    <span class="text-xs font-mono uppercase tracking-widest text-cyan-400 font-bold">Tiempo Real • Hoy ({{ $hoyLima->format('d/m/Y') }})</span>
+                    <h3 class="text-2xl font-black tracking-tight text-white mt-1">Pedidos del Comedor por Hora</h3>
+                </div>
+                <div class="flex items-center gap-4 text-xs font-mono">
+                    <span class="inline-flex items-center gap-2 text-cyan-400">
+                        <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse"></span> Pedidos
+                    </span>
+                    <span class="inline-flex items-center gap-2 text-rose-400">
+                        <span class="w-2.5 h-2.5 rounded-full bg-rose-400"></span> Cancelados
+                    </span>
+                </div>
+            </div>
+
+            <div class="h-72 w-full">
+                <canvas id="graficoPedidosTiempoReal" wire:ignore></canvas>
+            </div>
+        </div>
     </div>
 
     <!-- MODAL FLOTANTE DE RECARGA DE SALDO -->
@@ -240,4 +280,86 @@
         </div>
     </div>
     @endif
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        (function () {
+            function sincronizarGraficoPedidos() {
+                const canvas = document.getElementById('graficoPedidosTiempoReal');
+                if (!canvas) return;
+                const contenedor = canvas.closest('[data-labels]');
+                if (!contenedor) return;
+
+                const labels = JSON.parse(contenedor.getAttribute('data-labels') || '[]');
+                const pedidos = JSON.parse(contenedor.getAttribute('data-pedidos') || '[]');
+                const cancelados = JSON.parse(contenedor.getAttribute('data-cancelados') || '[]');
+
+                if (window.graficoPedidosInstancia) {
+                    window.graficoPedidosInstancia.data.labels = labels;
+                    window.graficoPedidosInstancia.data.datasets[0].data = pedidos;
+                    window.graficoPedidosInstancia.data.datasets[1].data = cancelados;
+                    window.graficoPedidosInstancia.update();
+                    return;
+                }
+
+                window.graficoPedidosInstancia = new Chart(canvas.getContext('2d'), {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: 'Pedidos',
+                                data: pedidos,
+                                borderColor: '#22d3ee',
+                                backgroundColor: 'rgba(34, 211, 238, 0.15)',
+                                borderWidth: 3,
+                                tension: 0.35,
+                                pointRadius: 4,
+                                pointBackgroundColor: '#22d3ee',
+                                fill: true
+                            },
+                            {
+                                label: 'Cancelados',
+                                data: cancelados,
+                                borderColor: '#fb7185',
+                                backgroundColor: 'rgba(251, 113, 133, 0.12)',
+                                borderWidth: 2,
+                                tension: 0.35,
+                                pointRadius: 3,
+                                pointBackgroundColor: '#fb7185',
+                                fill: true
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: { duration: 350 },
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: {
+                            legend: {
+                                labels: { color: '#cbd5e1', font: { family: 'monospace', size: 12 } }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                ticks: { color: '#94a3b8' },
+                                grid: { color: 'rgba(148, 163, 184, 0.1)' }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                ticks: { color: '#94a3b8', precision: 0 },
+                                grid: { color: 'rgba(148, 163, 184, 0.1)' }
+                            }
+                        }
+                    }
+                });
+            }
+
+            sincronizarGraficoPedidos();
+            document.addEventListener('livewire:morph.updated', sincronizarGraficoPedidos);
+            document.addEventListener('livewire:navigated', sincronizarGraficoPedidos);
+            setInterval(sincronizarGraficoPedidos, 5000);
+        })();
+    </script>
 </div>

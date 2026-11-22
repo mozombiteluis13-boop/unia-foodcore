@@ -9,6 +9,7 @@ class InventarioInsumos extends Component
 {
     public $turno = 'Desayuno';
     public $esExtra = false;
+    public $seccionVista = 'menu'; // 'menu' o 'extras'
     public $categoria = 'BEBIDAS';
     public $nombre;
     public $cantidad;
@@ -26,11 +27,10 @@ class InventarioInsumos extends Component
                 'categoria' => 'required|in:Plato,Bebida',
                 'nombre'    => 'required|string|max:255',
                 'cantidad'  => 'required|integer|min:1',
-                'precio'    => 'required|numeric|min:0.50',
+                'precio'    => 'required|numeric|min:0.10',
             ];
         }
 
-        // Si es Almuerzo normal y la categoría es POSTRES o BEBIDAS, el precio es opcional
         $esPostreOBebidaAlmuerzo = ($this->turno === 'Almuerzo' && in_array($this->categoria, ['POSTRES', 'BEBIDAS']));
 
         return [
@@ -43,18 +43,24 @@ class InventarioInsumos extends Component
         ];
     }
 
-    // Se ejecuta al cambiar el turno
+    public function cambiarSeccionVista(string $seccion)
+    {
+        if (in_array($seccion, ['menu', 'extras'], true)) {
+            $this->seccionVista = $seccion;
+        }
+    }
+
     public function updatedTurno($value)
     {
         if ($value === 'Desayuno') {
             $this->esExtra = false;
+            $this->seccionVista = 'menu';
             $this->categoria = 'BEBIDAS';
         } else {
             $this->categoria = $this->esExtra ? 'Plato' : 'PLATOS DE FONDO';
         }
     }
 
-    // Se ejecuta al marcar o desmarcar Extra
     public function updatedEsExtra($value)
     {
         if ($this->turno !== 'Almuerzo') {
@@ -70,7 +76,6 @@ class InventarioInsumos extends Component
     {
         $esExtraAlmuerzo = ($this->turno === 'Almuerzo' && $this->esExtra);
 
-        // Si es Extra en Almuerzo, siempre exige precio; en menú normal mantiene tu regla
         $exigePrecio = $esExtraAlmuerzo
             || $this->turno === 'Desayuno'
             || ($this->turno === 'Almuerzo' && stripos($this->categoria, 'Fondo') !== false);
@@ -84,7 +89,7 @@ class InventarioInsumos extends Component
         ];
 
         if ($exigePrecio) {
-            $rules['precio'] = $esExtraAlmuerzo ? 'required|numeric|min:0.50' : 'required|numeric|min:0';
+            $rules['precio'] = $esExtraAlmuerzo ? 'required|numeric|min:0.10' : 'required|numeric|min:0';
         }
 
         $this->validate($rules);
@@ -101,6 +106,9 @@ class InventarioInsumos extends Component
             'precio'    => $precioFinal,
         ]);
 
+        // Cambia automáticamente la pestaña inferior para ver lo recién publicado
+        $this->seccionVista = $esExtraAlmuerzo ? 'extras' : 'menu';
+
         $this->reset(['nombre', 'cantidad', 'precio', 'esExtra']);
         $this->updatedTurno($this->turno);
         session()->flash('exito', '¡Menú publicado correctamente!');
@@ -115,10 +123,19 @@ class InventarioInsumos extends Component
 
     public function render()
     {
+        $query = Insumo::where('cantidad', '>', 0)
+            ->where('turno', $this->turno);
+
+        if ($this->turno === 'Almuerzo') {
+            $query->where('es_extra', $this->seccionVista === 'extras');
+        } else {
+            $query->where(function ($q) {
+                $q->where('es_extra', false)->orWhereNull('es_extra');
+            });
+        }
+
         return view('livewire.inventario-insumos', [
-            'insumos' => Insumo::where('cantidad', '>', 0)
-                                 ->where('turno', $this->turno)
-                                 ->get()
+            'insumos' => $query->get(),
         ]);
     }
 }

@@ -70,11 +70,29 @@
             </div>
         @endif
 
-        <!-- MENÚ DISPONIBLE: COLUMNAS PARALELAS CON SEPARACIÓN INTELIGENTE -->
+        <!-- MENÚ DISPONIBLE: PESTAÑAS MENÚ / EXTRAS + COLUMNAS PARALELAS -->
         <div class="mb-8">
-            <h3 class="font-bold text-lg text-gray-800 mb-6 flex items-center gap-2">
-                <span>📋</span> Menú Disponible en el Comedor
-            </h3>
+            <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+                <h3 class="font-bold text-lg text-gray-800 flex items-center gap-2">
+                    <span>📋</span> {{ $seccionVista === 'extras' ? 'Extras Disponibles en el Comedor' : 'Menú Disponible en el Comedor' }}
+                </h3>
+
+                <div class="inline-flex p-1 bg-gray-100 border border-gray-200 rounded-xl gap-1">
+                    <button type="button"
+                            wire:click="cambiarSeccionVista('menu')"
+                            class="px-4 py-2 rounded-lg text-xs font-extrabold uppercase tracking-wider transition cursor-pointer {{ $seccionVista === 'menu' ? 'bg-emerald-600 text-white shadow-sm' : 'text-gray-600 hover:text-gray-900' }}">
+                        🍽️ Menú
+                    </button>
+
+                    @if(($turnoVisible ?? null) === 'Almuerzo')
+                        <button type="button"
+                                wire:click="cambiarSeccionVista('extras')"
+                                class="px-4 py-2 rounded-lg text-xs font-extrabold uppercase tracking-wider transition cursor-pointer {{ $seccionVista === 'extras' ? 'bg-amber-500 text-slate-950 shadow-sm' : 'text-gray-600 hover:text-gray-900' }}">
+                            ⚡ Extras
+                        </button>
+                    @endif
+                </div>
+            </div>
 
             @php
                 $grupos = $insumos->groupBy(function($item) {
@@ -106,12 +124,12 @@
                         <div class="w-80 flex-shrink-0 bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
                             <div class="flex items-center justify-between mb-4 pb-3 border-b border-gray-100">
                                 <div class="flex items-center gap-2">
-                                    <span class="w-2.5 h-5 rounded-full bg-emerald-600"></span>
+                                    <span class="w-2.5 h-5 rounded-full {{ $seccionVista === 'extras' ? 'bg-amber-500' : 'bg-emerald-600' }}"></span>
                                     <h4 class="text-base font-black uppercase tracking-wider text-gray-900">
                                         {{ $categoriaNombre }}
                                     </h4>
                                 </div>
-                                <span class="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full">
+                                <span class="text-xs font-bold {{ $seccionVista === 'extras' ? 'text-amber-700 bg-amber-50' : 'text-emerald-700 bg-emerald-50' }} px-2.5 py-1 rounded-full">
                                     {{ $items->count() }} {{ $items->count() == 1 ? 'opción' : 'opciones' }}
                                 </span>
                             </div>
@@ -120,10 +138,17 @@
                                 @foreach($items as $item)
                                     <div class="border border-gray-200 rounded-xl p-4 bg-gradient-to-br from-gray-50/50 to-white shadow-sm flex flex-col justify-between">
                                         <div>
-                                            <div class="flex justify-between items-start mb-2">
-                                                <span class="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                                                    {{ $item->turno ?? 'General' }}
-                                                </span>
+                                            <div class="flex justify-between items-start mb-2 gap-2">
+                                                <div class="flex items-center gap-1.5 flex-wrap">
+                                                    <span class="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                                                        {{ $item->turno ?? 'General' }}
+                                                    </span>
+                                                    @if($item->es_extra ?? false)
+                                                        <span class="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                                                            EXTRA
+                                                        </span>
+                                                    @endif
+                                                </div>
 
                                                 @if($item->cantidad > 0)
                                                     <span class="inline-flex items-center text-xs font-bold text-green-600">
@@ -138,8 +163,12 @@
 
                                             <h3 class="text-lg font-extrabold text-gray-800 mb-1">{{ $item->nombre }}</h3>
 
-                                            <div class="text-emerald-700 font-black text-sm mb-2">
-                                                Precio: S/. {{ number_format($item->precio ?? 0, 2) }}
+                                            <div class="{{ ($item->es_extra ?? false) ? 'text-amber-700' : 'text-emerald-700' }} font-black text-sm mb-2">
+                                                @if(($item->precio ?? 0) > 0)
+                                                    Precio: S/. {{ number_format($item->precio, 2) }}
+                                                @else
+                                                    INCLUIDO (S/. 0.00)
+                                                @endif
                                             </div>
 
                                             <p class="text-xs text-gray-600 mb-4">
@@ -150,8 +179,8 @@
                                         <div>
                                             @if($item->cantidad > 0)
                                                 <button wire:click="agregarItem({{ $item->id }})"
-                                                        class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition shadow-md flex items-center justify-center gap-2">
-                                                    <span>🛒</span> Solicitar mi Ración
+                                                        class="w-full {{ ($item->es_extra ?? false) ? 'bg-amber-500 hover:bg-amber-600 text-slate-950' : 'bg-emerald-600 hover:bg-emerald-700 text-white' }} font-bold py-2.5 px-4 rounded-xl text-xs transition shadow-md flex items-center justify-center gap-2 cursor-pointer">
+                                                    <span>🛒</span> {{ ($item->es_extra ?? false) ? 'Solicitar Extra' : 'Solicitar mi Ración' }}
                                                 </button>
                                             @else
                                                 <button disabled class="w-full bg-gray-200 text-gray-400 font-bold py-2.5 px-4 rounded-xl text-xs cursor-not-allowed">
@@ -165,7 +194,9 @@
                         </div>
                     @empty
                         <div class="w-full text-center py-10 text-gray-400 bg-white rounded-2xl border">
-                            <p class="text-base font-semibold">No hay menús disponibles en este momento.</p>
+                            <p class="text-base font-semibold">
+                                {{ $seccionVista === 'extras' ? 'No hay extras disponibles en este momento.' : 'No hay menús disponibles en este momento.' }}
+                            </p>
                         </div>
                     @endforelse
                 </div>
@@ -191,7 +222,14 @@
                     <tbody class="divide-y divide-gray-100">
                         @forelse($seleccionados as $index => $sel)
                             <tr class="hover:bg-emerald-50/50 transition">
-                                <td class="p-3 font-bold text-gray-800">{{ $sel['nombre'] }}</td>
+                                <td class="p-3 font-bold text-gray-800">
+                                    {{ $sel['nombre'] }}
+                                    @if(!empty($sel['es_extra']))
+                                        <span class="ml-1.5 text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                                            EXTRA
+                                        </span>
+                                    @endif
+                                </td>
                                 <td class="p-3">
                                     <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">
                                         {{ $sel['categoria'] ?? $sel['unidad'] ?? 'General' }}
@@ -202,7 +240,7 @@
                                 </td>
                                 <td class="p-3 text-right">
                                     <button wire:click="quitarItem({{ $index }})"
-                                            class="text-red-500 hover:text-red-700 font-bold text-xs">
+                                            class="text-red-500 hover:text-red-700 font-bold text-xs cursor-pointer">
                                         ✕ Quitar
                                     </button>
                                 </td>
@@ -227,7 +265,7 @@
                 </div>
 
                 <button wire:click="enviarPedidoFinal"
-                        class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 px-6 rounded-xl text-base transition shadow-lg flex items-center justify-center gap-3 uppercase tracking-wider">
+                        class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 px-6 rounded-xl text-base transition shadow-lg flex items-center justify-center gap-3 uppercase tracking-wider cursor-pointer">
                     <span>🚀</span> Enviar Pedido
                 </button>
             @endif

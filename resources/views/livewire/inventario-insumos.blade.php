@@ -32,7 +32,7 @@
     @endif
 
     <!-- FORMULARIO DE REGISTRO / PUBLICACIÓN -->
-    <div class="bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl p-8 md:p-10 mb-12 relative overflow-hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl p-8 md:p-10 mb-10 relative overflow-hidden">
         <div class="absolute -left-10 -bottom-10 w-48 h-48 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none"></div>
 
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 pb-6 border-b border-slate-800 relative z-10">
@@ -105,7 +105,7 @@
                     <label class="block text-[11px] font-black text-slate-400 uppercase tracking-widest">
                         Precio Unitario {{ ($turno === 'Almuerzo' && $esExtra) ? '(Obligatorio)' : '' }}
                     </label>
-                    <input type="number" step="0.50" wire:model="precio" min="{{ ($turno === 'Almuerzo' && $esExtra) ? '0.50' : '0' }}" placeholder="Ej. 3.50" class="w-full bg-slate-950 border border-slate-700 rounded-2xl text-xs font-bold p-4 text-white shadow-inner focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition placeholder:text-slate-500">
+                    <input type="number" step="0.50" wire:model="precio" min="{{ ($turno === 'Almuerzo' && $esExtra) ? '0.10' : '0' }}" placeholder="Ej. 3.50" class="w-full bg-slate-950 border border-slate-700 rounded-2xl text-xs font-bold p-4 text-white shadow-inner focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition placeholder:text-slate-500">
                     @error('precio') <span class="block text-[11px] text-rose-400 font-bold mt-1.5 flex items-center gap-1">⚠️ {{ $message }}</span> @enderror
                 </div>
             @endif
@@ -117,6 +117,29 @@
                 <span>+ Publicar en el Menú</span>
             </button>
         </div>
+    </div>
+
+    <!-- PESTAÑAS MENÚ / EXTRAS JUSTO ARRIBA DEL LISTADO -->
+    <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+        <div class="inline-flex p-1.5 bg-slate-900 border border-slate-800 rounded-2xl shadow-lg gap-2">
+            <button type="button"
+                    wire:click="cambiarSeccionVista('menu')"
+                    class="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition cursor-pointer {{ $seccionVista === 'menu' ? 'bg-amber-500 text-slate-950 shadow-md' : 'text-slate-400 hover:text-white' }}">
+                🍽️ Menú
+            </button>
+
+            @if($turno === 'Almuerzo')
+                <button type="button"
+                        wire:click="cambiarSeccionVista('extras')"
+                        class="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition cursor-pointer {{ $seccionVista === 'extras' ? 'bg-amber-500 text-slate-950 shadow-md' : 'text-slate-400 hover:text-white' }}">
+                    ⚡ Extras
+                </button>
+            @endif
+        </div>
+
+        <span class="text-xs font-bold text-slate-400">
+            Mostrando {{ $seccionVista === 'extras' ? 'Extras de Almuerzo' : 'Menú Regular (' . $turno . ')' }}
+        </span>
     </div>
 
     <!-- SECCIÓN DE MENÚ DISPONIBLE -->
@@ -249,7 +272,9 @@
     @else
         <div class="w-full text-center py-20 bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl">
             <span class="text-5xl">🍽️</span>
-            <p class="text-sm font-black text-slate-300 mt-4 uppercase tracking-wider">No hay raciones ni bebidas publicadas para hoy</p>
+            <p class="text-sm font-black text-slate-300 mt-4 uppercase tracking-wider">
+                {{ $seccionVista === 'extras' ? 'No hay extras publicados para este turno' : 'No hay raciones ni bebidas publicadas para hoy' }}
+            </p>
             <p class="text-xs text-slate-500 mt-1">Usa el formulario superior para comenzar a registrar el menú del comedor.</p>
         </div>
     @endif

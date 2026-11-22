@@ -19,5 +19,6 @@ class Insumo extends Model
         'precio',
         'unidad',
         'stock_minimo',
+        'es_extra',
     ];
 }

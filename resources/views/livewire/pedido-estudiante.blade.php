@@ -68,11 +68,11 @@
         </div>
     @endif
 
-    <!-- BARRA DE SECCIONES: MENÚ / EXTRAS / KIOSCO -->
+    <!-- BARRA DE SECCIONES Y BOTÓN KIOSCO -->
     <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
         <h3 class="font-bold text-lg text-gray-800 flex items-center gap-2">
             <span>📋</span>
-            @if($seccionVista === 'kiosco')
+            @if($kioscoAbierto)
                 Kiosco Estudiantil ({{ $categoriaKioscoActiva }})
             @elseif($seccionVista === 'extras')
                 Extras Disponibles en el Comedor
@@ -81,33 +81,25 @@
             @endif
         </h3>
 
-        <div class="inline-flex flex-wrap p-1 bg-gray-100 border border-gray-200 rounded-xl gap-1">
-            @if(Cache::get('comedor_abierto', true) && !is_null($turnoVisible))
+        <div class="inline-flex flex-wrap items-center gap-2">
+            @if(Cache::get('comedor_abierto', true) && !is_null($turnoVisible) && $kioscoAbierto)
                 <button type="button"
-                        wire:click="cambiarSeccionVista('menu')"
-                        class="px-4 py-2 rounded-lg text-xs font-extrabold uppercase tracking-wider transition cursor-pointer {{ $seccionVista === 'menu' ? 'bg-emerald-600 text-white shadow-sm' : 'text-gray-600 hover:text-gray-900' }}">
-                    🍽️ Menú
+                        wire:click="$set('kioscoAbierto', false)"
+                        class="px-4 py-2 rounded-lg text-xs font-extrabold uppercase tracking-wider transition cursor-pointer bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200">
+                    🍽️ Ver Comedor
                 </button>
-
-                @if(($turnoVisible ?? null) === 'Almuerzo')
-                    <button type="button"
-                            wire:click="cambiarSeccionVista('extras')"
-                            class="px-4 py-2 rounded-lg text-xs font-extrabold uppercase tracking-wider transition cursor-pointer {{ $seccionVista === 'extras' ? 'bg-amber-500 text-slate-950 shadow-sm' : 'text-gray-600 hover:text-gray-900' }}">
-                        ⚡ Extras
-                    </button>
-                @endif
             @endif
 
             <button type="button"
-                    wire:click="cambiarSeccionVista('kiosco')"
-                    class="px-4 py-2 rounded-lg text-xs font-extrabold uppercase tracking-wider transition cursor-pointer {{ $seccionVista === 'kiosco' ? 'bg-amber-500 text-slate-950 shadow-sm' : 'text-gray-600 hover:text-gray-900' }}">
+                    wire:click="abrirKiosco"
+                    class="px-4 py-2 rounded-lg text-xs font-extrabold uppercase tracking-wider transition cursor-pointer {{ $kioscoAbierto ? 'bg-amber-500 text-slate-950 shadow-sm' : 'bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-sm' }}">
                 🥤 Kiosco
             </button>
         </div>
     </div>
 
-    @if($seccionVista === 'kiosco')
-        <!-- AL PRESIONAR KIOSCO: 4 BOTONES Y SOLO LO DE LA CATEGORÍA ELEGIDA -->
+    @if($kioscoAbierto)
+        <!-- SOLO AL PRESIONAR KIOSCO: 4 BOTONES DE CATEGORÍA Y LO DE LA CATEGORÍA ELEGIDA -->
         @php
             $iconosKiosco = [
                 'Bebidas'   => '🥤',
@@ -197,6 +189,24 @@
     @elseif(Cache::get('comedor_abierto', true) && !is_null($turnoVisible))
         <!-- MENÚ DISPONIBLE: PESTAÑAS MENÚ / EXTRAS + COLUMNAS PARALELAS -->
         <div class="mb-8">
+            <div class="flex flex-wrap items-center justify-end gap-4 mb-6">
+                <div class="inline-flex p-1 bg-gray-100 border border-gray-200 rounded-xl gap-1">
+                    <button type="button"
+                            wire:click="cambiarSeccionVista('menu')"
+                            class="px-4 py-2 rounded-lg text-xs font-extrabold uppercase tracking-wider transition cursor-pointer {{ $seccionVista === 'menu' ? 'bg-emerald-600 text-white shadow-sm' : 'text-gray-600 hover:text-gray-900' }}">
+                        🍽️ Menú
+                    </button>
+
+                    @if(($turnoVisible ?? null) === 'Almuerzo')
+                        <button type="button"
+                                wire:click="cambiarSeccionVista('extras')"
+                                class="px-4 py-2 rounded-lg text-xs font-extrabold uppercase tracking-wider transition cursor-pointer {{ $seccionVista === 'extras' ? 'bg-amber-500 text-slate-950 shadow-sm' : 'text-gray-600 hover:text-gray-900' }}">
+                            ⚡ Extras
+                        </button>
+                    @endif
+                </div>
+            </div>
+
             @php
                 $grupos = $insumos->groupBy(function($item) {
                     $cat = trim($item->categoria ?? $item->unidad ?? '');
@@ -312,7 +322,7 @@
             </div>
             <h2 class="text-2xl font-black text-gray-900 mb-2">El Comedor se encuentra CERRADO</h2>
             <p class="text-sm text-gray-500 font-medium leading-relaxed max-w-md mx-auto mb-6">
-                En este momento el servicio de comedor no está recibiendo solicitudes. Por favor, intente en el próximo horario de atención.
+                En este momento el servicio de comedor no está recibiendo solicitudes. Puedes presionar el botón <span class="font-bold text-amber-700">Kiosco</span> arriba para comprar con tu saldo.
             </p>
             <div class="inline-flex items-center gap-2 bg-rose-50 text-rose-700 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider">
                 <span class="w-2 h-2 rounded-full bg-rose-600 animate-pulse"></span>

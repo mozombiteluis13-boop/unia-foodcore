@@ -17,6 +17,7 @@ class PedidoEstudiante extends Component
     public $saldoActual = null;
     public $nombreEstudiante = '';
     public $seccionVista = 'menu'; // 'menu', 'extras' o 'kiosco'
+    public bool $kioscoAbierto = false; // Solo true cuando se presiona el botón Kiosco
     public string $categoriaKioscoActiva = 'Bebidas';
     public array $categoriasKiosco = ['Bebidas', 'Golosinas', 'Snacks', 'Galletas'];
 
@@ -54,10 +55,19 @@ class PedidoEstudiante extends Component
         return null;
     }
 
+    public function abrirKiosco()
+    {
+        $this->kioscoAbierto = true;
+        $this->seccionVista = 'kiosco';
+    }
+
     public function cambiarSeccionVista(string $seccion)
     {
         if (in_array($seccion, ['menu', 'extras', 'kiosco'], true)) {
             $this->seccionVista = $seccion;
+            if ($seccion === 'kiosco') {
+                $this->kioscoAbierto = true;
+            }
         }
     }
 
@@ -65,6 +75,8 @@ class PedidoEstudiante extends Component
     {
         if (in_array($categoria, $this->categoriasKiosco, true)) {
             $this->categoriaKioscoActiva = $categoria;
+            $this->kioscoAbierto = true;
+            $this->seccionVista = 'kiosco';
         }
     }
 
@@ -345,7 +357,8 @@ class PedidoEstudiante extends Component
         }
 
         $this->dispatch('reproducir-voz');
-        $this->reset(['seleccionados', 'dni', 'saldoActual', 'nombreEstudiante']);
+        $this->reset(['seleccionados', 'dni', 'saldoActual', 'nombreEstudiante', 'kioscoAbierto']);
+        $this->seccionVista = 'menu';
         session()->flash('exito', '¡Tu pedido fue enviado con éxito! Se descontó S/. ' . number_format($totalCobrado, 2) . ' de tu saldo.');
     }
 
@@ -394,7 +407,7 @@ class PedidoEstudiante extends Component
             $insumos = $query->get();
         }
 
-        $productosKiosco = $this->seccionVista === 'kiosco'
+        $productosKiosco = $this->kioscoAbierto
             ? ProductoKiosco::where('activo', true)
                 ->where('categoria', $this->categoriaKioscoActiva)
                 ->orderBy('nombre')

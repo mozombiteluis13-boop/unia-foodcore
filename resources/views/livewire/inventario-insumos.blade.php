@@ -119,7 +119,33 @@
         </div>
     </div>
 
-    @if(!is_null($turnoPublicado))
+    @php
+        $grupos = (!is_null($turnoPublicado))
+            ? $insumos->groupBy(function($item) {
+                $cat = trim($item->categoria ?? '');
+                $nombreLower = strtolower($item->nombre);
+
+                if (!empty($cat) && strcasecmp($cat, 'General') !== 0) {
+                    return mb_strtoupper($cat, 'UTF-8');
+                }
+
+                if (str_contains($nombreLower, 'kinua') || str_contains($nombreLower, 'quinua') || str_contains($nombreLower, 'maca') || str_contains($nombreLower, 'chapo') || str_contains($nombreLower, 'camu') || str_contains($nombreLower, 'chicha') || str_contains($nombreLower, 'jugo') || str_contains($nombreLower, 'refresco') || str_contains($nombreLower, 'te') || str_contains($nombreLower, 'cafe')) {
+                    return 'BEBIDAS';
+                }
+                elseif (str_contains($nombreLower, 'pan') || str_contains($nombreLower, 'huevo') || str_contains($nombreLower, 'palta')) {
+                    return 'PANES';
+                }
+                elseif (str_contains($nombreLower, 'postre') || str_contains($nombreLower, 'gelatina') || str_contains($nombreLower, 'mazamorra') || str_contains($nombreLower, 'fruta') || str_contains($nombreLower, 'huancaina')) {
+                    return 'POSTRES';
+                }
+                else {
+                    return 'PLATOS DE FONDO';
+                }
+            })
+            : collect();
+    @endphp
+
+    @if(!is_null($turnoPublicado) && $grupos->count() > 0)
         <!-- PESTAÑAS DESAYUNO / MENÚ / EXTRAS JUSTO ARRIBA DEL LISTADO -->
         <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
             <div class="inline-flex p-1.5 bg-slate-900 border border-slate-800 rounded-2xl shadow-lg gap-2">
@@ -144,148 +170,105 @@
         </div>
 
         <!-- SECCIÓN DE MENÚ DISPONIBLE -->
-        @php
-            $grupos = $insumos->groupBy(function($item) {
-                $cat = trim($item->categoria ?? '');
-                $nombreLower = strtolower($item->nombre);
-
-                if (!empty($cat) && strcasecmp($cat, 'General') !== 0) {
-                    return mb_strtoupper($cat, 'UTF-8');
-                }
-
-                if (str_contains($nombreLower, 'kinua') || str_contains($nombreLower, 'quinua') || str_contains($nombreLower, 'maca') || str_contains($nombreLower, 'chapo') || str_contains($nombreLower, 'camu') || str_contains($nombreLower, 'chicha') || str_contains($nombreLower, 'jugo') || str_contains($nombreLower, 'refresco') || str_contains($nombreLower, 'te') || str_contains($nombreLower, 'cafe')) {
-                    return 'BEBIDAS';
-                }
-                elseif (str_contains($nombreLower, 'pan') || str_contains($nombreLower, 'huevo') || str_contains($nombreLower, 'palta')) {
-                    return 'PANES';
-                }
-                elseif (str_contains($nombreLower, 'postre') || str_contains($nombreLower, 'gelatina') || str_contains($nombreLower, 'mazamorra') || str_contains($nombreLower, 'fruta') || str_contains($nombreLower, 'huancaina')) {
-                    return 'POSTRES';
-                }
-                else {
-                    return 'PLATOS DE FONDO';
-                }
-            });
-        @endphp
-
-        @if($grupos->count() > 0)
-            <!-- CONTENEDOR CON SCROLL HORIZONTAL PRO -->
-            <div class="w-full overflow-x-auto pb-8">
-                <div class="flex gap-6 items-start min-w-[750px]">
-                    @foreach($grupos as $categoriaNombre => $items)
-                        <!-- Tarjeta contenedora de categoría -->
-                        <div class="w-80 flex-shrink-0 bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl">
-                            
-                            <!-- Encabezado de la categoría -->
-                            <div class="flex items-center justify-between mb-6 pb-4 border-b border-slate-800">
-                                <div class="flex items-center gap-3">
-                                    <span class="w-3 h-7 rounded-full bg-gradient-to-b from-amber-400 to-amber-600 shadow-sm shadow-amber-500/50"></span>
-                                    <h4 class="text-sm font-black uppercase tracking-wider text-white">
-                                        {{ $categoriaNombre }}
-                                    </h4>
-                                </div>
-                                <span class="text-[10px] font-black text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-xl">
-                                    {{ $items->count() }} {{ $items->count() == 1 ? 'ítem' : 'ítems' }}
-                                </span>
+        <div class="w-full overflow-x-auto pb-8">
+            <div class="flex gap-6 items-start min-w-[750px]">
+                @foreach($grupos as $categoriaNombre => $items)
+                    <!-- Tarjeta contenedora de categoría -->
+                    <div class="w-80 flex-shrink-0 bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl">
+                        
+                        <!-- Encabezado de la categoría -->
+                        <div class="flex items-center justify-between mb-6 pb-4 border-b border-slate-800">
+                            <div class="flex items-center gap-3">
+                                <span class="w-3 h-7 rounded-full bg-gradient-to-b from-amber-400 to-amber-600 shadow-sm shadow-amber-500/50"></span>
+                                <h4 class="text-sm font-black uppercase tracking-wider text-white">
+                                    {{ $categoriaNombre }}
+                                </h4>
                             </div>
-                            
-                            <!-- LISTA CON SCROLL VERTICAL INDEPENDIENTE -->
-                            <div class="max-h-[480px] overflow-y-auto pr-1 flex flex-col gap-3.5">
-                                @foreach($items as $item)
-                                    <div class="border border-slate-800 rounded-2xl p-4.5 bg-slate-950/70 hover:bg-slate-800/40 transition-all shadow-md flex justify-between items-center relative overflow-hidden group">
-                                        <div class="space-y-2">
-                                            <div class="flex items-center gap-2 flex-wrap">
-                                                <span class="text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-md bg-slate-800 text-slate-300 border border-slate-700">
-                                                    {{ $item->turno ?? 'General' }}
-                                                </span>
-                                                @if($item->es_extra ?? false)
-                                                    <span class="text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30">
-                                                        EXTRA
-                                                    </span>
-                                                @endif
-                                            </div>
-                                            
-                                            <h5 class="text-sm font-extrabold text-slate-100 group-hover:text-amber-300 transition-colors">{{ $item->nombre }}</h5>
-                                            
-                                            <div class="text-amber-500 font-black text-sm mb-2">
-                                                @if(($item->precio ?? 0) > 0)
-                                                    S/. {{ number_format($item->precio, 2) }}
-                                                @else
-                                                    INCLUIDO
-                                                @endif
-                                            </div>
-                                            
-                                            <p class="text-[11px] text-slate-400 font-medium">
-                                                Stock: <span class="font-black text-emerald-400">{{ $item->cantidad }}</span> raciones
-                                            </p>
-                                        </div>
-
-                                        <div class="flex flex-col items-end gap-3">
-                                            @if($item->cantidad > 0)
-                                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-sm">
-                                                    <span class="w-1.5 h-1.5 mr-1.5 bg-emerald-400 rounded-full animate-pulse"></span> ACTIVO
-                                                </span>
-                                            @else
-                                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black bg-rose-500/10 text-rose-400 border border-rose-500/20 shadow-sm">
-                                                    ❌ AGOTADO
+                            <span class="text-[10px] font-black text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-xl">
+                                {{ $items->count() }} {{ $items->count() == 1 ? 'ítem' : 'ítems' }}
+                            </span>
+                        </div>
+                        
+                        <!-- LISTA CON SCROLL VERTICAL INDEPENDIENTE -->
+                        <div class="max-h-[480px] overflow-y-auto pr-1 flex flex-col gap-3.5">
+                            @foreach($items as $item)
+                                <div class="border border-slate-800 rounded-2xl p-4.5 bg-slate-950/70 hover:bg-slate-800/40 transition-all shadow-md flex justify-between items-center relative overflow-hidden group">
+                                    <div class="space-y-2">
+                                        <div class="flex items-center gap-2 flex-wrap">
+                                            <span class="text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-md bg-slate-800 text-slate-300 border border-slate-700">
+                                                {{ $item->turno ?? 'General' }}
+                                            </span>
+                                            @if($item->es_extra ?? false)
+                                                <span class="text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                                                    EXTRA
                                                 </span>
                                             @endif
+                                        </div>
+                                        
+                                        <h5 class="text-sm font-extrabold text-slate-100 group-hover:text-amber-300 transition-colors">{{ $item->nombre }}</h5>
+                                        
+                                        <div class="text-amber-500 font-black text-sm mb-2">
+                                            @if(($item->precio ?? 0) > 0)
+                                                S/. {{ number_format($item->precio, 2) }}
+                                            @else
+                                                INCLUIDO
+                                            @endif
+                                        </div>
+                                        
+                                        <p class="text-[11px] text-slate-400 font-medium">
+                                            Stock: <span class="font-black text-emerald-400">{{ $item->cantidad }}</span> raciones
+                                        </p>
+                                    </div>
 
-                                            <div x-data="{ confirmingDelete: false }" class="relative inline-block w-full">
-                                                <!-- Botón principal de eliminar -->
-                                                <button type="button"
-                                                        x-show="!confirmingDelete"
-                                                        @click="confirmingDelete = true"
-                                                        class="w-full text-xs text-rose-400 hover:text-rose-300 font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 mt-2 bg-rose-500/10 hover:bg-rose-500/20 px-3 py-2 rounded-xl border border-rose-500/20">
-                                                    🗑️ Eliminar
-                                                </button>
+                                    <div class="flex flex-col items-end gap-3">
+                                        @if($item->cantidad > 0)
+                                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-sm">
+                                                <span class="w-1.5 h-1.5 mr-1.5 bg-emerald-400 rounded-full animate-pulse"></span> ACTIVO
+                                            </span>
+                                        @else
+                                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black bg-rose-500/10 text-rose-400 border border-rose-500/20 shadow-sm">
+                                                ❌ AGOTADO
+                                            </span>
+                                        @endif
 
-                                                <!-- Mini tarjeta de confirmación con diseño profesional -->
-                                                <div x-show="confirmingDelete" 
-                                                    x-cloak
-                                                    class="mt-2 bg-slate-900 border border-rose-500/40 p-3 rounded-2xl shadow-2xl flex flex-col gap-2 text-center">
-                                                    <p class="text-[11px] font-bold text-gray-200">
-                                                        ¿Eliminar este elemento?
-                                                    </p>
-                                                    <div class="flex gap-2">
-                                                        <button type="button"
-                                                                @click="confirmingDelete = false"
-                                                                class="flex-1 bg-slate-800 hover:bg-slate-700 text-gray-300 text-[10px] font-bold py-1.5 px-3 rounded-xl transition cursor-pointer">
-                                                            Cancelar
-                                                        </button>
-                                                        <button type="button"
-                                                                wire:click="eliminarInsumo({{ $item->id }})"
-                                                                @click="confirmingDelete = false"
-                                                                class="flex-1 bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-bold py-1.5 px-3 rounded-xl transition shadow-md cursor-pointer">
-                                                            Sí, eliminar
-                                                        </button>
-                                                    </div>
+                                        <div x-data="{ confirmingDelete: false }" class="relative inline-block w-full">
+                                            <!-- Botón principal de eliminar -->
+                                            <button type="button"
+                                                    x-show="!confirmingDelete"
+                                                    @click="confirmingDelete = true"
+                                                    class="w-full text-xs text-rose-400 hover:text-rose-300 font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 mt-2 bg-rose-500/10 hover:bg-rose-500/20 px-3 py-2 rounded-xl border border-rose-500/20">
+                                                🗑️ Eliminar
+                                            </button>
+
+                                            <!-- Mini tarjeta de confirmación con diseño profesional -->
+                                            <div x-show="confirmingDelete" 
+                                                x-cloak
+                                                class="mt-2 bg-slate-900 border border-rose-500/40 p-3 rounded-2xl shadow-2xl flex flex-col gap-2 text-center">
+                                                <p class="text-[11px] font-bold text-gray-200">
+                                                    ¿Eliminar este elemento?
+                                                </p>
+                                                <div class="flex gap-2">
+                                                    <button type="button"
+                                                            @click="confirmingDelete = false"
+                                                            class="flex-1 bg-slate-800 hover:bg-slate-700 text-gray-300 text-[10px] font-bold py-1.5 px-3 rounded-xl transition cursor-pointer">
+                                                        Cancelar
+                                                    </button>
+                                                    <button type="button"
+                                                            wire:click="eliminarInsumo({{ $item->id }})"
+                                                            @click="confirmingDelete = false"
+                                                            class="flex-1 bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-bold py-1.5 px-3 rounded-xl transition shadow-md cursor-pointer">
+                                                        Sí, eliminar
+                                                    </button>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
-                                @endforeach
-                            </div>
+                                </div>
+                            @endforeach
                         </div>
-                    @endforeach
-                </div>
+                    </div>
+                @endforeach
             </div>
-        @else
-            <div class="w-full text-center py-20 bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl">
-                <span class="text-5xl">🍽️</span>
-                <p class="text-sm font-black text-slate-300 mt-4 uppercase tracking-wider">
-                    {{ $seccionVista === 'extras' ? 'No hay extras publicados para este turno' : 'No hay raciones ni bebidas publicadas para hoy' }}
-                </p>
-                <p class="text-xs text-slate-500 mt-1">Usa el formulario superior para comenzar a registrar el menú del comedor.</p>
-            </div>
-        @endif
-    @else
-        <div class="w-full text-center py-20 bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl">
-            <span class="text-5xl">🍽️</span>
-            <p class="text-sm font-black text-slate-300 mt-4 uppercase tracking-wider">
-                No hay turno publicado para la hora actual
-            </p>
-            <p class="text-xs text-slate-500 mt-1">Publica Desayuno o Menú en su horario correspondiente para mostrarlo.</p>
         </div>
     @endif
 

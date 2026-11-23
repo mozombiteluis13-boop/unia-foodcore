@@ -70,6 +70,58 @@ class PedidoEstudiante extends Component
         return $hayPublicado ? $turnoHora : null;
     }
 
+    private function esAcompanamientoGratisMenu(string $turno, bool $esExtra, float $precio, string $categoria, string $nombre): bool
+    {
+        if ($turno !== 'Almuerzo' || $esExtra || $precio > 0) {
+            return false;
+        }
+
+        $catUpper = mb_strtoupper(trim($categoria), 'UTF-8');
+        $nombreLower = mb_strtolower($nombre, 'UTF-8');
+
+        if (in_array($catUpper, ['BEBIDAS', 'BEBIDA', 'POSTRES', 'POSTRE'], true)) {
+            return true;
+        }
+
+        return str_contains($nombreLower, 'camu')
+            || str_contains($nombreLower, 'chicha')
+            || str_contains($nombreLower, 'maracuya')
+            || str_contains($nombreLower, 'jugo')
+            || str_contains($nombreLower, 'refresco')
+            || str_contains($nombreLower, 'kinua')
+            || str_contains($nombreLower, 'quinua')
+            || str_contains($nombreLower, 'te')
+            || str_contains($nombreLower, 'huancaina')
+            || str_contains($nombreLower, 'postre')
+            || str_contains($nombreLower, 'gelatina')
+            || str_contains($nombreLower, 'mazamorra')
+            || str_contains($nombreLower, 'fruta');
+    }
+
+    private function esPlatoPrincipalMenu(string $turno, bool $esExtra, float $precio, string $categoria, string $nombre): bool
+    {
+        if ($turno !== 'Almuerzo' || $esExtra) {
+            return false;
+        }
+
+        return !$this->esAcompanamientoGratisMenu($turno, $esExtra, $precio, $categoria, $nombre);
+    }
+
+    private function tieneMenuPrincipalSeleccionado(): bool
+    {
+        foreach ($this->seleccionados as $sel) {
+            if (($sel['origen'] ?? 'comedor') !== 'comedor') {
+                continue;
+            }
+
+            if (!empty($sel['es_plato_menu'])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public function abrirKiosco()
     {
         $this->kioscoAbierto = true;
@@ -128,10 +180,25 @@ class PedidoEstudiante extends Component
 
         $esExtraItem = (bool) ($item->es_extra ?? false);
         $precioReal = (float) ($item->precio ?? 0);
+        $categoriaItem = $item->categoria ?? $item->unidad ?? 'General';
 
         // Si es extra, sí o sí debe tener precio mayor a 0
         if ($esExtraItem && $precioReal <= 0) {
             session()->flash('error', 'Este ítem extra no tiene un precio válido configurado.');
+            return;
+        }
+
+        $esAcompanamientoGratis = $this->esAcompanamientoGratisMenu(
+            (string) $item->turno,
+            $esExtraItem,
+            $precioReal,
+            (string) $categoriaItem,
+            (string) $item->nombre
+        );
+
+        // Bloqueo: bebida o postre gratis del menú requiere haber elegido primero el Menú
+        if ($esAcompanamientoGratis && !$this->tieneMenuPrincipalSeleccionado()) {
+            session()->flash('error', '🔒 Primero debes seleccionar tu Menú (Plato de Fondo) para poder elegir tu bebida o postre incluido.');
             return;
         }
 
@@ -145,14 +212,24 @@ class PedidoEstudiante extends Component
             return;
         }
 
+        $esPlatoMenu = $this->esPlatoPrincipalMenu(
+            (string) $item->turno,
+            $esExtraItem,
+            $precioReal,
+            (string) $categoriaItem,
+            (string) $item->nombre
+        );
+
         $this->seleccionados[] = [
-            'origen'    => 'comedor',
-            'id'        => $item->id,
-            'nombre'    => $item->nombre,
-            'categoria' => $item->categoria ?? 'General',
-            'unidad'    => $item->unidad ?? 'General',
-            'es_extra'  => $esExtraItem,
-            'precio'    => $precioReal,
+            'origen'                 => 'comedor',
+            'id'                     => $item->id,
+            'nombre'                 => $item->nombre,
+            'categoria'              => $item->categoria ?? 'General',
+            'unidad'                 => $item->unidad ?? 'General',
+            'es_extra'               => $esExtraItem,
+            'es_plato_menu'          => $esPlatoMenu,
+            'es_acompanamiento_menu' => $esAcompanamientoGratis,
+            'precio'                 => $precioReal,
         ];
 
         session()->flash('mensaje', '¡' . $item->nombre . ' agregado a tu selección!');
@@ -212,8 +289,22 @@ class PedidoEstudiante extends Component
 
     public function quitarItem($index)
     {
+        $itemQuitado = $this->seleccionados[$index] ?? null;
         unset($this->seleccionados[$index]);
         $this->seleccionados = array_values($this->seleccionados);
+
+        // Si quitó su Menú y ya no queda ningún otro plato de fondo del menú, retira también bebida/postre gratis
+        if (!empty($itemQuitado['es_plato_menu']) && !$this->tieneMenuPrincipalSeleccionado()) {
+            $antes = count($this->seleccionados);
+            $this->seleccionados = array_values(array_filter(
+                $this->seleccionados,
+                fn ($sel) => empty($sel['es_acompanamiento_menu'])
+            ));
+
+            if (count($this->seleccionados) < $antes) {
+                session()->flash('error', 'ℹ️ Se retiraron la bebida y/o el postre incluidos porque quitaste tu Menú.');
+            }
+        }
     }
 
     public function enviarPedidoFinal()
@@ -280,6 +371,8 @@ class PedidoEstudiante extends Component
 
             $totalCalculado = 0;
             $nombresItems = [];
+            $tienePlatoMenuDb = false;
+            $tieneAcompanamientoGratisDb = false;
 
             foreach ($cantidadesComedor as $insumoId => $cantSolicitada) {
                 $insumo = $insumosDb->get($insumoId);
@@ -296,6 +389,7 @@ class PedidoEstudiante extends Component
 
                 $esExtraItem = (bool) ($insumo->es_extra ?? false);
                 $precioUnitario = (float) ($insumo->precio ?? 0);
+                $categoriaDb = (string) ($insumo->categoria ?? $insumo->unidad ?? 'General');
 
                 // Blindaje: un ítem extra siempre debe cobrar su precio real > 0
                 if ($esExtraItem && $precioUnitario <= 0) {
@@ -303,11 +397,24 @@ class PedidoEstudiante extends Component
                     return;
                 }
 
+                if ($this->esAcompanamientoGratisMenu((string) $insumo->turno, $esExtraItem, $precioUnitario, $categoriaDb, (string) $insumo->nombre)) {
+                    $tieneAcompanamientoGratisDb = true;
+                }
+
+                if ($this->esPlatoPrincipalMenu((string) $insumo->turno, $esExtraItem, $precioUnitario, $categoriaDb, (string) $insumo->nombre)) {
+                    $tienePlatoMenuDb = true;
+                }
+
                 $totalCalculado += ($precioUnitario * $cantSolicitada);
 
                 for ($i = 0; $i < $cantSolicitada; $i++) {
                     $nombresItems[] = $esExtraItem ? ($insumo->nombre . ' (EXTRA)') : $insumo->nombre;
                 }
+            }
+
+            if ($tieneAcompanamientoGratisDb && !$tienePlatoMenuDb) {
+                $resultadoError = '🔒 No puedes enviar bebidas o postres incluidos sin haber seleccionado tu Menú principal.';
+                return;
             }
 
             foreach ($cantidadesKiosco as $productoId => $cantSolicitada) {
@@ -430,10 +537,11 @@ class PedidoEstudiante extends Component
             : collect();
 
         return view('livewire.pedido-estudiante', [
-            'insumos'         => $insumos,
-            'productosKiosco' => $productosKiosco,
-            'turnoVisible'    => $turnoVisible,
-            'puedePedir'      => $puedePedir,
+            'insumos'              => $insumos,
+            'productosKiosco'      => $productosKiosco,
+            'turnoVisible'         => $turnoVisible,
+            'puedePedir'           => $puedePedir,
+            'tieneMenuSeleccionado'=> $this->tieneMenuPrincipalSeleccionado(),
         ]);
     }
 }

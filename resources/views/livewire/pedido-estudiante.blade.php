@@ -236,6 +236,10 @@
             <div class="w-full overflow-x-auto pb-4">
                 <div class="flex gap-6 items-start min-w-[700px]">
                     @forelse($grupos as $categoriaNombre => $items)
+                        @php
+                            $esColumnaAcompanamiento = (($turnoVisible ?? null) === 'Almuerzo' && $seccionVista === 'menu' && in_array($categoriaNombre, ['BEBIDAS', 'POSTRES'], true));
+                        @endphp
+
                         <div class="w-80 flex-shrink-0 bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
                             <div class="flex items-center justify-between mb-4 pb-3 border-b border-gray-100">
                                 <div class="flex items-center gap-2">
@@ -249,8 +253,24 @@
                                 </span>
                             </div>
 
+                            @if($esColumnaAcompanamiento && !($tieneMenuSeleccionado ?? false))
+                                <div class="mb-3 px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 text-[11px] font-bold text-amber-800">
+                                    🔒 Selecciona primero tu Plato de Fondo para habilitar {{ strtolower($categoriaNombre) }}.
+                                </div>
+                            @endif
+
                             <div class="max-h-[450px] overflow-y-auto pr-2 flex flex-col gap-4">
                                 @foreach($items as $item)
+                                    @php
+                                        $bloqueadoPorFaltaDeMenu = (
+                                            ($item->turno ?? '') === 'Almuerzo'
+                                            && !($item->es_extra ?? false)
+                                            && (float) ($item->precio ?? 0) <= 0
+                                            && $esColumnaAcompanamiento
+                                            && !($tieneMenuSeleccionado ?? false)
+                                        );
+                                    @endphp
+
                                     <div class="border border-gray-200 rounded-xl p-4 bg-gradient-to-br from-gray-50/50 to-white shadow-sm flex flex-col justify-between">
                                         <div>
                                             <div class="flex justify-between items-start mb-2 gap-2">
@@ -292,14 +312,18 @@
                                         </div>
 
                                         <div>
-                                            @if($item->cantidad > 0)
+                                            @if($item->cantidad <= 0)
+                                                <button disabled class="w-full bg-gray-200 text-gray-400 font-bold py-2.5 px-4 rounded-xl text-xs cursor-not-allowed">
+                                                    Sin Stock Disponible
+                                                </button>
+                                            @elseif($bloqueadoPorFaltaDeMenu)
+                                                <button disabled class="w-full bg-gray-100 border border-gray-200 text-gray-400 font-bold py-2.5 px-4 rounded-xl text-xs cursor-not-allowed flex items-center justify-center gap-1.5">
+                                                    <span>🔒</span> Elige tu Menú primero
+                                                </button>
+                                            @else
                                                 <button wire:click="agregarItem({{ $item->id }})"
                                                         class="w-full {{ ($item->es_extra ?? false) ? 'bg-amber-500 hover:bg-amber-600 text-slate-950' : 'bg-emerald-600 hover:bg-emerald-700 text-white' }} font-bold py-2.5 px-4 rounded-xl text-xs transition shadow-md flex items-center justify-center gap-2 cursor-pointer">
                                                     <span>🛒</span> {{ ($item->es_extra ?? false) ? 'Solicitar Extra' : 'Solicitar mi Ración' }}
-                                                </button>
-                                            @else
-                                                <button disabled class="w-full bg-gray-200 text-gray-400 font-bold py-2.5 px-4 rounded-xl text-xs cursor-not-allowed">
-                                                    Sin Stock Disponible
                                                 </button>
                                             @endif
                                         </div>

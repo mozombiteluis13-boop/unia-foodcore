@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use Livewire\Component;
 use App\Models\Insumo;
+use Carbon\Carbon;
 
 class InventarioInsumos extends Component
 {
@@ -15,6 +16,36 @@ class InventarioInsumos extends Component
     public $cantidad;
     public $unidad = 'Porción';
     public $precio;
+
+    private function turnoPorHora(?string $horaActual = null): ?string
+    {
+        $hora = $horaActual ?? Carbon::now('America/Lima')->format('H:i');
+
+        if ($hora >= '06:00' && $hora < '10:00') {
+            return 'Desayuno';
+        }
+
+        if ($hora >= '11:00' && $hora <= '16:00') {
+            return 'Almuerzo';
+        }
+
+        return null;
+    }
+
+    private function turnoPublicadoActual(): ?string
+    {
+        $turnoHora = $this->turnoPorHora();
+
+        if (!$turnoHora) {
+            return null;
+        }
+
+        $hayPublicado = Insumo::where('cantidad', '>', 0)
+            ->where('turno', $turnoHora)
+            ->exists();
+
+        return $hayPublicado ? $turnoHora : null;
+    }
 
     protected function rules()
     {
@@ -123,19 +154,31 @@ class InventarioInsumos extends Component
 
     public function render()
     {
-        $query = Insumo::where('cantidad', '>', 0)
-            ->where('turno', $this->turno);
+        $turnoPublicado = $this->turnoPublicadoActual();
+        $insumos = collect();
 
-        if ($this->turno === 'Almuerzo') {
-            $query->where('es_extra', $this->seccionVista === 'extras');
-        } else {
-            $query->where(function ($q) {
-                $q->where('es_extra', false)->orWhereNull('es_extra');
-            });
+        if ($turnoPublicado) {
+            if ($turnoPublicado !== 'Almuerzo' && $this->seccionVista === 'extras') {
+                $this->seccionVista = 'menu';
+            }
+
+            $query = Insumo::where('cantidad', '>', 0)
+                ->where('turno', $turnoPublicado);
+
+            if ($turnoPublicado === 'Almuerzo') {
+                $query->where('es_extra', $this->seccionVista === 'extras');
+            } else {
+                $query->where(function ($q) {
+                    $q->where('es_extra', false)->orWhereNull('es_extra');
+                });
+            }
+
+            $insumos = $query->get();
         }
 
         return view('livewire.inventario-insumos', [
-            'insumos' => $query->get(),
+            'insumos'        => $insumos,
+            'turnoPublicado' => $turnoPublicado,
         ]);
     }
 }

@@ -38,7 +38,7 @@ class PedidoEstudiante extends Component
         return null;
     }
 
-    private function turnoVisible(?string $horaActual = null): ?string
+    private function turnoPorHora(?string $horaActual = null): ?string
     {
         $hora = $horaActual ?? Carbon::now('America/Lima')->format('H:i');
 
@@ -53,6 +53,21 @@ class PedidoEstudiante extends Component
         }
 
         return null;
+    }
+
+    private function turnoVisible(?string $horaActual = null): ?string
+    {
+        $turnoHora = $this->turnoPorHora($horaActual);
+
+        if (!$turnoHora) {
+            return null;
+        }
+
+        $hayPublicado = Insumo::where('cantidad', '>', 0)
+            ->where('turno', $turnoHora)
+            ->exists();
+
+        return $hayPublicado ? $turnoHora : null;
     }
 
     public function abrirKiosco()
@@ -106,7 +121,7 @@ class PedidoEstudiante extends Component
         $item = Insumo::find($insumoId);
         $turnoActual = $this->turnoVisible();
 
-        if (!$item || $item->cantidad <= 0 || ($turnoActual && $item->turno !== $turnoActual)) {
+        if (!$item || $item->cantidad <= 0 || !$turnoActual || $item->turno !== $turnoActual) {
             session()->flash('error', 'No hay stock disponible o el ítem no pertenece al turno actual.');
             return;
         }

@@ -76,6 +76,8 @@
                 Kiosco Estudiantil ({{ $categoriaKioscoActiva }})
             @elseif($seccionVista === 'extras')
                 Extras Disponibles en el Comedor
+            @elseif(($turnoVisible ?? null) === 'Desayuno')
+                Desayuno Disponible en el Comedor
             @else
                 Menú Disponible en el Comedor
             @endif
@@ -86,7 +88,7 @@
                 <button type="button"
                         wire:click="$set('kioscoAbierto', false)"
                         class="px-4 py-2 rounded-lg text-xs font-extrabold uppercase tracking-wider transition cursor-pointer bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200">
-                    🍽️ Ver Comedor
+                    {{ $turnoVisible === 'Desayuno' ? '🍳 Ver Desayuno' : '🍽️ Ver Menú' }}
                 </button>
             @endif
 
@@ -187,14 +189,14 @@
             @endif
         </div>
     @elseif(Cache::get('comedor_abierto', true) && !is_null($turnoVisible))
-        <!-- MENÚ DISPONIBLE: PESTAÑAS MENÚ / EXTRAS + COLUMNAS PARALELAS -->
+        <!-- MENÚ DISPONIBLE: PESTAÑAS DESAYUNO / MENÚ / EXTRAS + COLUMNAS PARALELAS -->
         <div class="mb-8">
             <div class="flex flex-wrap items-center justify-end gap-4 mb-6">
                 <div class="inline-flex p-1 bg-gray-100 border border-gray-200 rounded-xl gap-1">
                     <button type="button"
                             wire:click="cambiarSeccionVista('menu')"
                             class="px-4 py-2 rounded-lg text-xs font-extrabold uppercase tracking-wider transition cursor-pointer {{ $seccionVista === 'menu' ? 'bg-emerald-600 text-white shadow-sm' : 'text-gray-600 hover:text-gray-900' }}">
-                        🍽️ Menú
+                        {{ ($turnoVisible ?? null) === 'Desayuno' ? '🍳 Desayuno' : '🍽️ Menú' }}
                     </button>
 
                     @if(($turnoVisible ?? null) === 'Almuerzo')

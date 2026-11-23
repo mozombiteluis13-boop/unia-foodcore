@@ -131,12 +131,12 @@ Route::middleware('auth')->group(function () {
             }
 
             $textoPedido = (string) ($consumo->pedido ?? '');
-            $montoTotal  = (float) ($consumo->precio ?? 0);
+            $montoTotal  = round((float) ($consumo->precio ?? 0), 2);
             $partes      = array_filter(array_map('trim', explode(' + ', $textoPedido)));
 
             if (count($partes) <= 1) {
                 $rubro = $detectarRubro($textoPedido);
-                $ganancias[$rubro] += $montoTotal;
+                $ganancias[$rubro] = round($ganancias[$rubro] + $montoTotal, 2);
                 continue;
             }
 
@@ -156,14 +156,18 @@ Route::middleware('auth')->group(function () {
                 $partesConCobro = $partes;
             }
 
-            $montoPorParte = $montoTotal / count($partesConCobro);
-            foreach ($partesConCobro as $parteCobrada) {
+            $cantidadPartes = count($partesConCobro);
+            $montoBase      = round($montoTotal / $cantidadPartes, 2);
+            $diferencia     = round($montoTotal - ($montoBase * $cantidadPartes), 2);
+
+            foreach ($partesConCobro as $indice => $parteCobrada) {
                 $rubro = $detectarRubro($parteCobrada);
-                $ganancias[$rubro] += $montoPorParte;
+                $montoAsignado = $montoBase + ($indice === 0 ? $diferencia : 0.0);
+                $ganancias[$rubro] = round($ganancias[$rubro] + $montoAsignado, 2);
             }
         }
 
-        $totalSemanal = array_sum($ganancias);
+        $totalSemanal = round(array_sum($ganancias), 2);
         $nombreArchivo = 'ganancias-semanales-' . $inicioSemana->format('Y-m-d') . '-al-' . $finSemana->format('Y-m-d') . '.csv';
 
         return response()->streamDownload(function () use ($consumos, $inicioSemana, $finSemana, $ganancias, $totalSemanal) {

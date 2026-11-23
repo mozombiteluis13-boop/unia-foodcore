@@ -107,7 +107,7 @@
     </div>
 
     @if($seccionVista === 'kiosco')
-        <!-- VISTA DEDICADA DE KIOSCO (4 BOTONES POR CATEGORÍA) -->
+        <!-- AL PRESIONAR KIOSCO: 4 BOTONES Y SOLO LO DE LA CATEGORÍA ELEGIDA -->
         @php
             $iconosKiosco = [
                 'Bebidas'   => '🥤',
@@ -306,17 +306,17 @@
             </div>
         </div>
     @else
-        <div class="bg-white border border-rose-100 rounded-3xl p-10 text-center shadow-sm max-w-xl mx-auto my-6">
-            <div class="w-16 h-16 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4 shadow-sm">
+        <div class="bg-white border border-rose-100 rounded-3xl p-12 text-center shadow-sm max-w-xl mx-auto my-6">
+            <div class="w-20 h-20 bg-rose-50 text-rose-600 rounded-3xl flex items-center justify-center text-4xl mx-auto mb-6 shadow-sm">
                 🔒
             </div>
-            <h2 class="text-xl font-black text-gray-900 mb-2">El Comedor se encuentra CERRADO</h2>
-            <p class="text-sm text-gray-500 font-medium leading-relaxed max-w-md mx-auto mb-5">
-                En este momento el comedor no está atendiendo, pero puedes seguir usando la pestaña <span class="font-bold text-amber-700">Kiosco</span> arriba para comprar con tu saldo.
+            <h2 class="text-2xl font-black text-gray-900 mb-2">El Comedor se encuentra CERRADO</h2>
+            <p class="text-sm text-gray-500 font-medium leading-relaxed max-w-md mx-auto mb-6">
+                En este momento el servicio de comedor no está recibiendo solicitudes. Por favor, intente en el próximo horario de atención.
             </p>
             <div class="inline-flex items-center gap-2 bg-rose-50 text-rose-700 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider">
                 <span class="w-2 h-2 rounded-full bg-rose-600 animate-pulse"></span>
-                Comedor no disponible
+                Servicio no disponible
             </div>
         </div>
     @endif

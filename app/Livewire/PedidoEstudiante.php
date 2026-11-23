@@ -392,20 +392,20 @@ class PedidoEstudiante extends Component
             }
 
             $insumos = $query->get();
-        } elseif ($this->seccionVista !== 'kiosco') {
-            $this->seccionVista = 'kiosco';
         }
 
-        $productosKiosco = ProductoKiosco::where('activo', true)
-            ->where('categoria', $this->categoriaKioscoActiva)
-            ->orderBy('nombre')
-            ->get();
+        $productosKiosco = $this->seccionVista === 'kiosco'
+            ? ProductoKiosco::where('activo', true)
+                ->where('categoria', $this->categoriaKioscoActiva)
+                ->orderBy('nombre')
+                ->get()
+            : collect();
 
         return view('livewire.pedido-estudiante', [
-            'insumos'          => $insumos,
-            'productosKiosco'  => $productosKiosco,
-            'turnoVisible'     => $turnoVisible,
-            'puedePedir'       => $puedePedir,
+            'insumos'         => $insumos,
+            'productosKiosco' => $productosKiosco,
+            'turnoVisible'    => $turnoVisible,
+            'puedePedir'      => $puedePedir,
         ]);
     }
 }

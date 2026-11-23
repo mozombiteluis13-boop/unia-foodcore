@@ -150,17 +150,32 @@
                                 </p>
                             </div>
 
-                            <div class="flex items-center gap-2 pt-3 border-t border-slate-800/80">
-                                <button type="button"
-                                        wire:click="sumarStock({{ $prod->id }}, 5)"
-                                        class="flex-1 py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 font-bold text-xs uppercase transition cursor-pointer">
-                                    +5 Stock
-                                </button>
-                                <button type="button"
-                                        wire:click="eliminarProducto({{ $prod->id }})"
-                                        class="py-2 px-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 font-bold text-xs uppercase transition cursor-pointer">
-                                    Borrar
-                                </button>
+                            <div class="space-y-2 pt-3 border-t border-slate-800/80">
+                                <div class="flex items-center gap-2">
+                                    <input type="number"
+                                           min="1"
+                                           placeholder="Cant."
+                                           wire:model="cantidadAgregar.{{ $prod->id }}"
+                                           class="w-20 px-2.5 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs font-mono focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                                    <button type="button"
+                                            wire:click="agregarStockPersonalizado({{ $prod->id }})"
+                                            class="flex-1 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase transition cursor-pointer">
+                                        + Sumar
+                                    </button>
+                                </div>
+
+                                <div class="flex items-center gap-2">
+                                    <button type="button"
+                                            wire:click="sumarStock({{ $prod->id }}, 5)"
+                                            class="flex-1 py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 font-bold text-xs uppercase transition cursor-pointer">
+                                        +5 Stock
+                                    </button>
+                                    <button type="button"
+                                            wire:click="eliminarProducto({{ $prod->id }})"
+                                            class="py-2 px-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 font-bold text-xs uppercase transition cursor-pointer">
+                                        Borrar
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     @endforeach

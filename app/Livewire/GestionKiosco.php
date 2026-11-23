@@ -14,6 +14,9 @@ class GestionKiosco extends Component
     public string $precio = '';
     public int $stock = 10;
 
+    // Cantidad personalizada por ID de producto para reponer stock
+    public array $cantidadAgregar = [];
+
     public array $categorias = ['Bebidas', 'Golosinas', 'Snacks', 'Galletas'];
 
     protected function rules(): array
@@ -63,6 +66,23 @@ class GestionKiosco extends Component
         }
     }
 
+    public function agregarStockPersonalizado(int $id): void
+    {
+        $cantidad = (int) ($this->cantidadAgregar[$id] ?? 0);
+
+        if ($cantidad < 1) {
+            session()->flash('kiosco_ok', 'Ingresa una cantidad mayor o igual a 1 para agregar stock.');
+            return;
+        }
+
+        $producto = ProductoKiosco::find($id);
+        if ($producto) {
+            $producto->increment('stock', $cantidad);
+            $this->cantidadAgregar[$id] = null;
+            session()->flash('kiosco_ok', "Se agregaron +{$cantidad} unidades a {$producto->nombre}.");
+        }
+    }
+
     public function eliminarProducto(int $id): void
     {
         $producto = ProductoKiosco::find($id);
@@ -78,6 +98,12 @@ class GestionKiosco extends Component
             ->where('categoria', $this->categoriaActiva)
             ->orderBy('nombre')
             ->get();
+
+        foreach ($productos as $prod) {
+            if (!array_key_exists($prod->id, $this->cantidadAgregar)) {
+                $this->cantidadAgregar[$prod->id] = null;
+            }
+        }
 
         $conteos = [
             'Bebidas'   => ProductoKiosco::where('activo', true)->where('categoria', 'Bebidas')->count(),

@@ -5,6 +5,7 @@ namespace App\Livewire;
 use Livewire\Component;
 use App\Models\Estudiante;
 use App\Models\Insumo;
+use App\Models\ProductoKiosco;
 use App\Models\Consumo;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -15,7 +16,9 @@ class PedidoEstudiante extends Component
     public $seleccionados = [];
     public $saldoActual = null;
     public $nombreEstudiante = '';
-    public $seccionVista = 'menu'; // 'menu' o 'extras'
+    public $seccionVista = 'menu'; // 'menu', 'extras' o 'kiosco'
+    public string $categoriaKioscoActiva = 'Bebidas';
+    public array $categoriasKiosco = ['Bebidas', 'Golosinas', 'Snacks', 'Galletas'];
 
     private function turnoPermitidoParaPedir(?string $horaActual = null): ?string
     {
@@ -53,8 +56,15 @@ class PedidoEstudiante extends Component
 
     public function cambiarSeccionVista(string $seccion)
     {
-        if (in_array($seccion, ['menu', 'extras'], true)) {
+        if (in_array($seccion, ['menu', 'extras', 'kiosco'], true)) {
             $this->seccionVista = $seccion;
+        }
+    }
+
+    public function seleccionarCategoriaKiosco(string $categoria)
+    {
+        if (in_array($categoria, $this->categoriasKiosco, true)) {
+            $this->categoriaKioscoActiva = $categoria;
         }
     }
 
@@ -99,13 +109,17 @@ class PedidoEstudiante extends Component
         }
 
         // Evita exceder el stock real contando cuántas veces ya lo puso en su carrito
-        $vecesEnCarrito = collect($this->seleccionados)->where('id', $item->id)->count();
+        $vecesEnCarrito = collect($this->seleccionados)
+            ->filter(fn ($sel) => ($sel['origen'] ?? 'comedor') === 'comedor' && (int) ($sel['id'] ?? 0) === (int) $item->id)
+            ->count();
+
         if (($vecesEnCarrito + 1) > $item->cantidad) {
             session()->flash('error', 'Ya alcanzaste el stock disponible de ' . $item->nombre . '.');
             return;
         }
 
         $this->seleccionados[] = [
+            'origen'    => 'comedor',
             'id'        => $item->id,
             'nombre'    => $item->nombre,
             'categoria' => $item->categoria ?? 'General',
@@ -117,6 +131,58 @@ class PedidoEstudiante extends Component
         session()->flash('mensaje', '¡' . $item->nombre . ' agregado a tu selección!');
     }
 
+    public function agregarProductoKiosco($productoId)
+    {
+        if (empty(trim($this->dni))) {
+            session()->flash('error', 'Por favor, ingresa tu DNI primero.');
+            return;
+        }
+
+        $estudiante = Estudiante::where('dni', trim($this->dni))->first();
+        if (!$estudiante) {
+            session()->flash('error', 'El DNI ingresado no está registrado.');
+            return;
+        }
+
+        if (!$estudiante->activo) {
+            session()->flash('error', '⚠️ Tu cuenta se encuentra inactiva. Acércate a la administración del comedor.');
+            return;
+        }
+
+        $producto = ProductoKiosco::where('activo', true)->find($productoId);
+        if (!$producto || (int) $producto->stock <= 0) {
+            session()->flash('error', 'No hay stock disponible para este producto del Kiosco.');
+            return;
+        }
+
+        $precioReal = (float) ($producto->precio ?? 0);
+        if ($precioReal <= 0) {
+            session()->flash('error', 'Este producto del Kiosco no tiene un precio válido configurado.');
+            return;
+        }
+
+        $vecesEnCarrito = collect($this->seleccionados)
+            ->filter(fn ($sel) => ($sel['origen'] ?? 'comedor') === 'kiosco' && (int) ($sel['id'] ?? 0) === (int) $producto->id)
+            ->count();
+
+        if (($vecesEnCarrito + 1) > (int) $producto->stock) {
+            session()->flash('error', 'Ya alcanzaste el stock disponible de ' . $producto->nombre . '.');
+            return;
+        }
+
+        $this->seleccionados[] = [
+            'origen'    => 'kiosco',
+            'id'        => $producto->id,
+            'nombre'    => $producto->nombre,
+            'categoria' => 'KIOSCO - ' . strtoupper($producto->categoria),
+            'unidad'    => $producto->categoria,
+            'es_extra'  => false,
+            'precio'    => $precioReal,
+        ];
+
+        session()->flash('mensaje', '¡' . $producto->nombre . ' (Kiosco) agregado a tu selección!');
+    }
+
     public function quitarItem($index)
     {
         unset($this->seleccionados[$index]);
@@ -125,18 +191,19 @@ class PedidoEstudiante extends Component
 
     public function enviarPedidoFinal()
     {
-        if (!$this->turnoPermitidoParaPedir()) {
-            session()->flash('error', '⏰ Ya pasó la hora límite para enviar pedidos (hasta las 09:40 AM para desayuno y 03:40 PM para almuerzo).');
-            return;
-        }
-
         if (empty(trim($this->dni))) {
             session()->flash('error', 'Ingresa tu DNI para enviar el pedido.');
             return;
         }
 
         if (empty($this->seleccionados)) {
-            session()->flash('error', 'Debes seleccionar al menos un plato o bebida.');
+            session()->flash('error', 'Debes seleccionar al menos un plato, bebida o producto.');
+            return;
+        }
+
+        $tieneComedor = collect($this->seleccionados)->contains(fn ($sel) => ($sel['origen'] ?? 'comedor') === 'comedor');
+        if ($tieneComedor && !$this->turnoPermitidoParaPedir()) {
+            session()->flash('error', '⏰ Ya pasó la hora límite para enviar pedidos del comedor (hasta las 09:40 AM para desayuno y 03:40 PM para almuerzo).');
             return;
         }
 
@@ -155,29 +222,43 @@ class PedidoEstudiante extends Component
                 return;
             }
 
-            // Agrupamos cantidades por ID de insumo y leemos el precio real desde la BD
-            $cantidadesPorId = [];
+            $cantidadesComedor = [];
+            $cantidadesKiosco = [];
+
             foreach ($this->seleccionados as $sel) {
-                if (!empty($sel['id'])) {
-                    $cantidadesPorId[$sel['id']] = ($cantidadesPorId[$sel['id']] ?? 0) + 1;
+                if (empty($sel['id'])) {
+                    continue;
+                }
+
+                $origen = $sel['origen'] ?? 'comedor';
+                if ($origen === 'kiosco') {
+                    $cantidadesKiosco[(int) $sel['id']] = ($cantidadesKiosco[(int) $sel['id']] ?? 0) + 1;
+                } else {
+                    $cantidadesComedor[(int) $sel['id']] = ($cantidadesComedor[(int) $sel['id']] ?? 0) + 1;
                 }
             }
 
-            if (empty($cantidadesPorId)) {
+            if (empty($cantidadesComedor) && empty($cantidadesKiosco)) {
                 $resultadoError = 'No se encontraron ítems válidos en tu pedido.';
                 return;
             }
 
-            $insumosDb = Insumo::whereIn('id', array_keys($cantidadesPorId))->lockForUpdate()->get()->keyBy('id');
+            $insumosDb = !empty($cantidadesComedor)
+                ? Insumo::whereIn('id', array_keys($cantidadesComedor))->lockForUpdate()->get()->keyBy('id')
+                : collect();
+
+            $kioscoDb = !empty($cantidadesKiosco)
+                ? ProductoKiosco::where('activo', true)->whereIn('id', array_keys($cantidadesKiosco))->lockForUpdate()->get()->keyBy('id')
+                : collect();
 
             $totalCalculado = 0;
             $nombresItems = [];
 
-            foreach ($cantidadesPorId as $insumoId => $cantSolicitada) {
+            foreach ($cantidadesComedor as $insumoId => $cantSolicitada) {
                 $insumo = $insumosDb->get($insumoId);
 
                 if (!$insumo) {
-                    $resultadoError = 'Uno de los ítems seleccionados ya no existe.';
+                    $resultadoError = 'Uno de los ítems del comedor seleccionados ya no existe.';
                     return;
                 }
 
@@ -202,6 +283,32 @@ class PedidoEstudiante extends Component
                 }
             }
 
+            foreach ($cantidadesKiosco as $productoId => $cantSolicitada) {
+                $producto = $kioscoDb->get($productoId);
+
+                if (!$producto) {
+                    $resultadoError = 'Uno de los productos del Kiosco seleccionados ya no está disponible.';
+                    return;
+                }
+
+                if ((int) $producto->stock < $cantSolicitada) {
+                    $resultadoError = 'No hay suficiente stock en Kiosco para "' . $producto->nombre . '" (disponibles: ' . $producto->stock . ').';
+                    return;
+                }
+
+                $precioUnitario = (float) ($producto->precio ?? 0);
+                if ($precioUnitario <= 0) {
+                    $resultadoError = 'El producto "' . $producto->nombre . '" no tiene un precio válido.';
+                    return;
+                }
+
+                $totalCalculado += ($precioUnitario * $cantSolicitada);
+
+                for ($i = 0; $i < $cantSolicitada; $i++) {
+                    $nombresItems[] = $producto->nombre . ' (KIOSCO - ' . $producto->categoria . ')';
+                }
+            }
+
             if ((float) $estudiante->saldo < $totalCalculado) {
                 $resultadoError = 'Saldo insuficiente. Tu saldo actual es S/. ' . number_format($estudiante->saldo, 2) . ' y el total de tu pedido es S/. ' . number_format($totalCalculado, 2);
                 return;
@@ -211,9 +318,14 @@ class PedidoEstudiante extends Component
             $estudiante->saldo = (float) $estudiante->saldo - $totalCalculado;
             $estudiante->save();
 
-            foreach ($cantidadesPorId as $insumoId => $cantSolicitada) {
+            foreach ($cantidadesComedor as $insumoId => $cantSolicitada) {
                 $insumo = $insumosDb->get($insumoId);
                 $insumo->decrement('cantidad', $cantSolicitada);
+            }
+
+            foreach ($cantidadesKiosco as $productoId => $cantSolicitada) {
+                $producto = $kioscoDb->get($productoId);
+                $producto->decrement('stock', $cantSolicitada);
             }
 
             Consumo::create([
@@ -280,12 +392,20 @@ class PedidoEstudiante extends Component
             }
 
             $insumos = $query->get();
+        } elseif ($this->seccionVista !== 'kiosco') {
+            $this->seccionVista = 'kiosco';
         }
 
+        $productosKiosco = ProductoKiosco::where('activo', true)
+            ->where('categoria', $this->categoriaKioscoActiva)
+            ->orderBy('nombre')
+            ->get();
+
         return view('livewire.pedido-estudiante', [
-            'insumos'      => $insumos,
-            'turnoVisible' => $turnoVisible,
-            'puedePedir'   => $puedePedir,
+            'insumos'          => $insumos,
+            'productosKiosco'  => $productosKiosco,
+            'turnoVisible'     => $turnoVisible,
+            'puedePedir'       => $puedePedir,
         ]);
     }
 }

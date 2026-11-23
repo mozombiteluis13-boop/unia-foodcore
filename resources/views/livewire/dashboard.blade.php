@@ -5,6 +5,7 @@
         $horaActual = (int) now()->format('Hi');
         $esDesayuno = ($horaActual >= 700 && $horaActual <= 930);
         $esAlmuerzo = ($horaActual >= 1130 && $horaActual <= 1500);
+        $totalProductosKiosco = \App\Models\ProductoKiosco::where('activo', true)->count();
     @endphp
 
     <!-- HEADER EJECUTIVO GRANDE Y POTENTE -->
@@ -30,6 +31,7 @@
             <a href="/" class="flex-1 xl:flex-none px-5 py-3 rounded-2xl bg-indigo-600 text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-600/40 transition-all text-center">Dashboard</a>
             <a href="/inventario" class="flex-1 xl:flex-none px-5 py-3 rounded-2xl text-slate-300 hover:text-white hover:bg-slate-800/80 font-bold text-xs uppercase tracking-widest transition-all text-center">Menú</a>
             <a href="/estudiantes" class="flex-1 xl:flex-none px-5 py-3 rounded-2xl text-slate-300 hover:text-white hover:bg-slate-800/80 font-bold text-xs uppercase tracking-widest transition-all text-center">Estudiantes</a>
+            <a href="{{ route('kiosco') }}" class="flex-1 xl:flex-none px-5 py-3 rounded-2xl text-amber-300 hover:text-white hover:bg-amber-500/20 font-bold text-xs uppercase tracking-widest transition-all text-center">Kiosco</a>
             <a href="{{ route('historial.estudiante') }}" class="flex-1 xl:flex-none px-5 py-3 rounded-2xl text-slate-300 hover:text-white hover:bg-slate-800/80 font-bold text-xs uppercase tracking-widest transition-all text-center">Reclamos</a>
             <button type="button"
                     wire:click="abrirModal"
@@ -64,7 +66,7 @@
 
     <!-- GRID PRINCIPAL -->
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
+
         <!-- MÓDULO 1: ESTADO DEL COMEDOR (6 Columnas - Compacto) -->
         <div class="lg:col-span-6 bg-gradient-to-b from-slate-900 to-slate-950 p-6 rounded-3xl border border-slate-800/80 shadow-2xl flex flex-col justify-between relative overflow-hidden group">
             <div class="absolute top-0 right-0 w-72 h-72 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none group-hover:bg-indigo-600/20 transition-all duration-700"></div>
@@ -109,7 +111,7 @@
             </div>
 
             <div class="mt-4 pt-4 border-t border-slate-800/80">
-                <button wire:click="toggleEstadoComedor" 
+                <button wire:click="toggleEstadoComedor"
                         class="w-full py-3.5 px-5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all duration-300 flex items-center justify-center gap-2.5 cursor-pointer shadow-xl {{ $comedorAbierto ? 'bg-rose-600 hover:bg-rose-500 text-white shadow-rose-950/60' : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-950/60' }}">
                     <span>{{ $comedorAbierto ? 'Cerrar Acceso al Comedor' : 'Abrir Acceso al Comedor' }}</span>
                     <span class="text-base">⚡</span>
@@ -119,7 +121,7 @@
 
         <!-- MÓDULO 2 & 3: ESTADÍSTICAS (6 Columnas divididas - Compacto) -->
         <div class="lg:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-6">
-            
+
             <!-- Estudiantes -->
             <div class="bg-slate-900/90 backdrop-blur-xl p-6 rounded-3xl border border-slate-800 shadow-2xl flex flex-col justify-between hover:border-slate-700 transition-all group">
                 <div>
@@ -160,6 +162,29 @@
                 </div>
             </div>
 
+        </div>
+
+        <!-- PANEL NUEVO: KIOSCO (Bebidas, Golosinas, Snacks, Galletas) -->
+        <div class="lg:col-span-12 bg-slate-900/90 backdrop-blur-xl p-6 rounded-3xl border border-amber-500/25 shadow-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-amber-500/40 transition-all">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center justify-center text-xl shrink-0">
+                    🥤
+                </div>
+                <div>
+                    <div class="flex items-center gap-2.5">
+                        <span class="text-xs font-mono uppercase tracking-wider text-slate-400 font-bold">Módulo Kiosco</span>
+                        <span class="text-[11px] font-mono uppercase tracking-wider text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20">
+                            {{ $totalProductosKiosco }} Activos
+                        </span>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-1">Administra categorías de Bebidas, Golosinas, Snacks y Galletas en vista independiente.</p>
+                </div>
+            </div>
+
+            <a href="{{ route('kiosco') }}" class="px-5 py-3 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 shrink-0 shadow-lg shadow-amber-500/20">
+                <span>Gestionar Kiosco</span>
+                <span class="text-sm">→</span>
+            </a>
         </div>
 
         <!-- MÓDULO 4: MONITOR DE PEDIDOS (Izquierda - 5 Columnas) -->

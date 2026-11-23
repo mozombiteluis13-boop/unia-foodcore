@@ -5,9 +5,10 @@ use App\Livewire\Dashboard;
 use App\Livewire\AsistenciaComedor;
 use App\Livewire\InventarioInsumos;
 use App\Livewire\GestionEstudiantes;
+use App\Livewire\GestionKiosco;
 use App\Livewire\PedidoEstudiante;
-use App\Livewire\RegistroEstudiante; 
-use App\Models\Consumo; 
+use App\Livewire\RegistroEstudiante;
+use App\Models\Consumo;
 use App\Http\Controllers\AuthController;
 
 /*
@@ -33,13 +34,14 @@ Route::get('/registro', RegistroEstudiante::class)->name('registro');
 // 3. Módulo de Historial y Reclamos por Estudiante (Mes Calendario Actual)
 Route::get('/historial-estudiante', function () {
     $dni = request('dni');
-    $historial = [];$estudiante = null;
+    $historial = [];
+    $estudiante = null;
 
     if ($dni) {
-        $estudiante = \App\Models\Estudiante::where('dni',$dni)->first();
-        
+        $estudiante = \App\Models\Estudiante::where('dni', $dni)->first();
+
         if ($estudiante) {
-            $historial = Consumo::where('estudiante_id',$estudiante->id)
+            $historial = Consumo::where('estudiante_id', $estudiante->id)
                 ->whereMonth('created_at', now()->month)
                 ->whereYear('created_at', now()->year)
                 ->latest()
@@ -62,14 +64,16 @@ Route::middleware('auth')->group(function () {
     Route::get('/', Dashboard::class)->name('dashboard');
 
     // Recarga de Saldo desde el Panel del Administrador
-    Route::post('/admin/recargar-saldo', function (\Illuminate\Http\Request $request) {$request->validate([
-            'dni' => 'required|exists:estudiantes,dni',
-            'monto' => 'required|numeric|min:0.50'
+    Route::post('/admin/recargar-saldo', function (\Illuminate\Http\Request $request) {
+        $request->validate([
+            'dni'   => 'required|exists:estudiantes,dni',
+            'monto' => 'required|numeric|min:0.50',
         ]);
 
-        $estudiante = \App\Models\Estudiante::where('dni',$request->dni)->first();
+        $estudiante = \App\Models\Estudiante::where('dni', $request->dni)->first();
 
-        if ($estudiante) {$estudiante->saldo = $estudiante->saldo +$request->monto;
+        if ($estudiante) {
+            $estudiante->saldo = $estudiante->saldo + $request->monto;
             $estudiante->save();
         }
 
@@ -84,12 +88,13 @@ Route::middleware('auth')->group(function () {
     // Monitoreo automático de nuevos pedidos en la cocina
     Route::get('/conteo-pedidos', function () {
         $pendientes = \App\Models\Consumo::whereDate('created_at', today())
-            ->where(function ($q) {$q->where('estado', 'pendiente')->orWhereNull('estado');
+            ->where(function ($q) {
+                $q->where('estado', 'pendiente')->orWhereNull('estado');
             });
 
         return response()->json([
-            'conteo' => $pendientes->count(),
-            'ultimo_id' => $pendientes->max('id') ?? 0,
+            'conteo'     => $pendientes->count(),
+            'ultimo_id'  => $pendientes->max('id') ?? 0,
         ]);
     });
 
@@ -97,7 +102,8 @@ Route::middleware('auth')->group(function () {
     Route::patch('/pedidos/{id}/entregar', function ($id) {
         try {
             $pedido = Consumo::find($id);
-            if ($pedido) {$pedido->update(['estado' => 'atendido']);
+            if ($pedido) {
+                $pedido->update(['estado' => 'atendido']);
             }
         } catch (\Exception $e) {
             // Si la columna estado no existe en la base de datos, el sistema no se caerá
@@ -106,10 +112,11 @@ Route::middleware('auth')->group(function () {
     })->name('pedidos.entregar');
 
     // Procesar el botón "Cancelar y Reembolsar" del monitor
-    Route::post('/pedidos/{id}/cancelar', function ($id) { \Illuminate\Support\Facades\DB::transaction(function () use ($id) {
-            $pedido = \Illuminate\Support\Facades\DB::table('consumos')->where('id',$id)->first();
-            
-            if ($pedido &&$pedido->estado !== 'cancelado') {
+    Route::post('/pedidos/{id}/cancelar', function ($id) {
+        \Illuminate\Support\Facades\DB::transaction(function () use ($id) {
+            $pedido = \Illuminate\Support\Facades\DB::table('consumos')->where('id', $id)->first();
+
+            if ($pedido && $pedido->estado !== 'cancelado') {
                 // 1. Devolver saldo al estudiante
                 if (!empty($pedido->dni_estudiante)) {
                     \Illuminate\Support\Facades\DB::table('estudiantes')
@@ -141,5 +148,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/asistencia', AsistenciaComedor::class)->name('asistencia');
     Route::get('/inventario', InventarioInsumos::class)->name('inventario');
     Route::get('/estudiantes', GestionEstudiantes::class)->name('estudiantes');
+    Route::get('/kiosco', GestionKiosco::class)->name('kiosco');
 
 });

@@ -6,6 +6,9 @@
         $esDesayuno = ($horaActual >= 700 && $horaActual <= 930);
         $esAlmuerzo = ($horaActual >= 1130 && $horaActual <= 1500);
         $totalProductosKiosco = \App\Models\ProductoKiosco::where('activo', true)->count();
+        $rubrosSemana = $reporteSemanal['rubros'] ?? [];
+        $totalSemanal = $reporteSemanal['total'] ?? 0;
+        $rangoSemana = $reporteSemanal['rango'] ?? '';
     @endphp
 
     <!-- HEADER EJECUTIVO GRANDE Y POTENTE -->
@@ -34,6 +37,11 @@
             <a href="{{ route('kiosco') }}" class="flex-1 xl:flex-none px-5 py-3 rounded-2xl text-amber-300 hover:text-white hover:bg-amber-500/20 font-bold text-xs uppercase tracking-widest transition-all text-center">Kiosco</a>
             <a href="{{ route('historial.estudiante') }}" class="flex-1 xl:flex-none px-5 py-3 rounded-2xl text-slate-300 hover:text-white hover:bg-slate-800/80 font-bold text-xs uppercase tracking-widest transition-all text-center">Reclamos</a>
             <button type="button"
+                    wire:click="abrirGananciasSemanales"
+                    class="flex-1 xl:flex-none px-5 py-3 rounded-2xl bg-cyan-600 hover:bg-cyan-500 text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-cyan-950/50 transition-all text-center cursor-pointer">
+                📊 Ganancias Semanales
+            </button>
+            <button type="button"
                     wire:click="abrirModal"
                     class="flex-1 xl:flex-none px-5 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-emerald-950/50 transition-all text-center cursor-pointer">
                 💳 Recargar Saldo
@@ -61,6 +69,77 @@
     @if ($errors->any())
         <div class="mb-4 p-3.5 bg-rose-500/15 border border-rose-500/40 text-rose-300 rounded-2xl text-sm font-bold">
             ⚠️ {{ $errors->first() }}
+        </div>
+    @endif
+
+    @if($mostrarGananciasSemanales ?? false)
+        <!-- SECCIÓN DE GANANCIAS SEMANALES (CON BOTÓN APARTE PARA EXPORTAR A EXCEL) -->
+        <div class="mb-8 bg-slate-900/95 border border-cyan-500/30 rounded-3xl p-6 shadow-2xl">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 mb-6 border-b border-slate-800">
+                <div>
+                    <span class="text-[11px] font-mono uppercase tracking-widest text-cyan-400 font-bold">
+                        Semana Actual {{ $rangoSemana ? '(' . $rangoSemana . ')' : '' }}
+                    </span>
+                    <h2 class="text-2xl font-black text-white mt-0.5">📊 Ganancias Semanales por Rubro</h2>
+                    <p class="text-xs text-slate-400 mt-1">Revisa cuánto se ganó esta semana en cada categoría o descarga el reporte en Excel.</p>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2.5">
+                    <a href="{{ route('admin.ganancias.exportar') }}"
+                       class="px-5 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-emerald-950/50 transition-all">
+                        📥 Exportar a Excel
+                    </a>
+                    <button type="button"
+                            wire:click="cerrarGananciasSemanales"
+                            class="px-5 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs uppercase tracking-widest transition-all cursor-pointer">
+                        ← Volver
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="bg-slate-950 border border-slate-800 rounded-2xl p-5">
+                    <p class="text-xs font-mono uppercase tracking-wider text-slate-400 font-bold">Menú</p>
+                    <p class="text-3xl font-black text-emerald-400 mt-2">
+                        S/. {{ number_format($rubrosSemana['menu'] ?? 0, 2) }}
+                    </p>
+                </div>
+
+                <div class="bg-slate-950 border border-slate-800 rounded-2xl p-5">
+                    <p class="text-xs font-mono uppercase tracking-wider text-slate-400 font-bold">Extras</p>
+                    <p class="text-3xl font-black text-amber-400 mt-2">
+                        S/. {{ number_format($rubrosSemana['extras'] ?? 0, 2) }}
+                    </p>
+                </div>
+
+                <div class="bg-slate-950 border border-slate-800 rounded-2xl p-5">
+                    <p class="text-xs font-mono uppercase tracking-wider text-slate-400 font-bold">Bebidas / Gaseosas</p>
+                    <p class="text-3xl font-black text-sky-400 mt-2">
+                        S/. {{ number_format($rubrosSemana['bebidas'] ?? 0, 2) }}
+                    </p>
+                </div>
+
+                <div class="bg-slate-950 border border-slate-800 rounded-2xl p-5">
+                    <p class="text-xs font-mono uppercase tracking-wider text-slate-400 font-bold">Snacks</p>
+                    <p class="text-3xl font-black text-purple-400 mt-2">
+                        S/. {{ number_format($rubrosSemana['snacks'] ?? 0, 2) }}
+                    </p>
+                </div>
+
+                <div class="bg-slate-950 border border-slate-800 rounded-2xl p-5">
+                    <p class="text-xs font-mono uppercase tracking-wider text-slate-400 font-bold">Golosinas</p>
+                    <p class="text-3xl font-black text-pink-400 mt-2">
+                        S/. {{ number_format($rubrosSemana['golosinas'] ?? 0, 2) }}
+                    </p>
+                </div>
+
+                <div class="bg-gradient-to-br from-emerald-950/70 to-slate-950 border border-emerald-500/40 rounded-2xl p-5">
+                    <p class="text-xs font-mono uppercase tracking-wider text-emerald-300 font-bold">Total Ganado en la Semana</p>
+                    <p class="text-3xl font-black text-white mt-2">
+                        S/. {{ number_format($totalSemanal, 2) }}
+                    </p>
+                </div>
+            </div>
         </div>
     @endif
 

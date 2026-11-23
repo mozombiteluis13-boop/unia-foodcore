@@ -17,6 +17,9 @@ class Dashboard extends Component
     public $nombreEstudianteRecarga = '';
     public $abrirModalRecarga = false;
 
+    // Sección de ganancias semanales
+    public bool $mostrarGananciasSemanales = false;
+
     public function mount()
     {
         $this->comedorAbierto = cache('comedor_abierto', true);
@@ -55,8 +58,123 @@ class Dashboard extends Component
         $this->abrirModalRecarga = false;
     }
 
+    public function abrirGananciasSemanales(): void
+    {
+        $this->mostrarGananciasSemanales = true;
+    }
+
+    public function cerrarGananciasSemanales(): void
+    {
+        $this->mostrarGananciasSemanales = false;
+    }
+
+    private function detectarRubroGanancia(string $textoItem): string
+    {
+        $upper = mb_strtoupper($textoItem, 'UTF-8');
+
+        if (str_contains($upper, '(EXTRA)')) {
+            return 'extras';
+        }
+
+        if (str_contains($upper, '(KIOSCO')) {
+            if (str_contains($upper, 'BEBID')) {
+                return 'bebidas';
+            }
+            if (str_contains($upper, 'SNACK')) {
+                return 'snacks';
+            }
+            if (str_contains($upper, 'GOLOSIN')) {
+                return 'golosinas';
+            }
+            if (str_contains($upper, 'GALLET')) {
+                return 'galletas';
+            }
+            return 'otros';
+        }
+
+        return 'menu';
+    }
+
+    private function calcularGananciasSemanales(): array
+    {
+        $inicioSemana = Carbon::now('America/Lima')->startOfWeek(Carbon::MONDAY)->startOfDay();
+        $finSemana    = Carbon::now('America/Lima')->endOfWeek(Carbon::SUNDAY)->endOfDay();
+
+        $consumosSemana = Consumo::whereBetween('created_at', [$inicioSemana, $finSemana])->get();
+
+        $ganancias = [
+            'menu'      => 0.0,
+            'extras'    => 0.0,
+            'bebidas'   => 0.0,
+            'snacks'    => 0.0,
+            'golosinas' => 0.0,
+            'galletas'  => 0.0,
+            'otros'     => 0.0,
+        ];
+
+        foreach ($consumosSemana as $consumo) {
+            if (($consumo->estado ?? '') === 'cancelado') {
+                continue;
+            }
+
+            $textoPedido = (string) ($consumo->pedido ?? '');
+            $montoTotal  = (float) ($consumo->precio ?? 0);
+            $partes      = array_filter(array_map('trim', explode(' + ', $textoPedido)));
+
+            if (count($partes) <= 1) {
+                $categoria = $this->detectarRubroGanancia($textoPedido);
+                $ganancias[$categoria] += $montoTotal;
+                continue;
+            }
+
+            $partesConCobro = [];
+            foreach ($partes as $parte) {
+                $rubro = $this->detectarRubroGanancia($parte);
+                $esAcompanamientoGratis = in_array($rubro, ['bebidas', 'snacks', 'golosinas', 'galletas'], true)
+                    && !str_contains(mb_strtoupper($parte, 'UTF-8'), '(KIOSCO')
+                    && $montoTotal > 0;
+
+                if (!$esAcompanamientoGratis) {
+                    $partesConCobro[] = $parte;
+                }
+            }
+
+            if (empty($partesConCobro)) {
+                $partesConCobro = $partes;
+            }
+
+            $montoPorParte = $montoTotal / count($partesConCobro);
+            foreach ($partesConCobro as $parteCobrada) {
+                $rubro = $this->detectarRubroGanancia($parteCobrada);
+                $ganancias[$rubro] += $montoPorParte;
+            }
+        }
+
+        return [
+            'rango'     => $inicioSemana->format('d/m/Y') . ' - ' . $finSemana->format('d/m/Y'),
+            'rubros'    => $ganancias,
+            'total'     => array_sum($ganancias),
+        ];
+    }
+
     public function render()
     {
+        $reporteSemanal = $this->mostrarGananciasSemanales
+            ? $this->calcularGananciasSemanales()
+            : [
+                'rango'  => '',
+                'rubros' => [
+                    'menu'      => 0.0,
+                    'extras'    => 0.0,
+                    'bebidas'   => 0.0,
+                    'snacks'    => 0.0,
+                    'golosinas' => 0.0,
+                    'galletas'  => 0.0,
+                    'otros'     => 0.0,
+                ],
+                'total'  => 0.0,
+            ];
+
         return view('livewire.dashboard', [
             'almuerzosHoy'        => Consumo::whereDate('created_at', Carbon::today())->count(),
             'estudiantesActivos'  => Estudiante::where('activo', true)->count(),
@@ -66,6 +184,7 @@ class Dashboard extends Component
                                         ->latest()
                                         ->take(10)
                                         ->get(),
+            'reporteSemanal'      => $reporteSemanal,
         ]);
     }
-}   
+}

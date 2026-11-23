@@ -80,6 +80,129 @@ Route::middleware('auth')->group(function () {
         return back()->with('success', '¡Recarga registrada con éxito!');
     })->name('admin.recargar.saldo');
 
+    // Exportar Ganancias Semanales a Excel (.csv compatible con Excel)
+    Route::get('/admin/ganancias-semanales/exportar', function () {
+        $inicioSemana = \Carbon\Carbon::now('America/Lima')->startOfWeek(\Carbon\Carbon::MONDAY)->startOfDay();
+        $finSemana    = \Carbon\Carbon::now('America/Lima')->endOfWeek(\Carbon\Carbon::SUNDAY)->endOfDay();
+
+        $consumos = Consumo::whereBetween('created_at', [$inicioSemana, $finSemana])
+            ->orderBy('created_at')
+            ->get();
+
+        $detectarRubro = function (string $textoItem): string {
+            $upper = mb_strtoupper($textoItem, 'UTF-8');
+
+            if (str_contains($upper, '(EXTRA)')) {
+                return 'extras';
+            }
+
+            if (str_contains($upper, '(KIOSCO')) {
+                if (str_contains($upper, 'BEBID')) {
+                    return 'bebidas';
+                }
+                if (str_contains($upper, 'SNACK')) {
+                    return 'snacks';
+                }
+                if (str_contains($upper, 'GOLOSIN')) {
+                    return 'golosinas';
+                }
+                if (str_contains($upper, 'GALLET')) {
+                    return 'galletas';
+                }
+                return 'otros';
+            }
+
+            return 'menu';
+        };
+
+        $ganancias = [
+            'menu'      => 0.0,
+            'extras'    => 0.0,
+            'bebidas'   => 0.0,
+            'snacks'    => 0.0,
+            'golosinas' => 0.0,
+            'galletas'  => 0.0,
+            'otros'     => 0.0,
+        ];
+
+        foreach ($consumos as $consumo) {
+            if (($consumo->estado ?? '') === 'cancelado') {
+                continue;
+            }
+
+            $textoPedido = (string) ($consumo->pedido ?? '');
+            $montoTotal  = (float) ($consumo->precio ?? 0);
+            $partes      = array_filter(array_map('trim', explode(' + ', $textoPedido)));
+
+            if (count($partes) <= 1) {
+                $rubro = $detectarRubro($textoPedido);
+                $ganancias[$rubro] += $montoTotal;
+                continue;
+            }
+
+            $partesConCobro = [];
+            foreach ($partes as $parte) {
+                $rubro = $detectarRubro($parte);
+                $esAcompanamientoGratis = in_array($rubro, ['bebidas', 'snacks', 'golosinas', 'galletas'], true)
+                    && !str_contains(mb_strtoupper($parte, 'UTF-8'), '(KIOSCO')
+                    && $montoTotal > 0;
+
+                if (!$esAcompanamientoGratis) {
+                    $partesConCobro[] = $parte;
+                }
+            }
+
+            if (empty($partesConCobro)) {
+                $partesConCobro = $partes;
+            }
+
+            $montoPorParte = $montoTotal / count($partesConCobro);
+            foreach ($partesConCobro as $parteCobrada) {
+                $rubro = $detectarRubro($parteCobrada);
+                $ganancias[$rubro] += $montoPorParte;
+            }
+        }
+
+        $totalSemanal = array_sum($ganancias);
+        $nombreArchivo = 'ganancias-semanales-' . $inicioSemana->format('Y-m-d') . '-al-' . $finSemana->format('Y-m-d') . '.csv';
+
+        return response()->streamDownload(function () use ($consumos, $inicioSemana, $finSemana, $ganancias, $totalSemanal) {
+            $handle = fopen('php://output', 'w');
+
+            // BOM UTF-8 para abrir correctamente en Excel
+            fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF));
+
+            fputcsv($handle, ['REPORTE SEMANAL DE GANANCIAS', $inicioSemana->format('d/m/Y') . ' - ' . $finSemana->format('d/m/Y')], ';');
+            fputcsv($handle, [], ';');
+            fputcsv($handle, ['RESUMEN POR RUBRO', 'MONTO (S/.)'], ';');
+            fputcsv($handle, ['Menú', number_format($ganancias['menu'], 2, '.', '')], ';');
+            fputcsv($handle, ['Extras', number_format($ganancias['extras'], 2, '.', '')], ';');
+            fputcsv($handle, ['Bebidas / Gaseosas', number_format($ganancias['bebidas'], 2, '.', '')], ';');
+            fputcsv($handle, ['Snacks', number_format($ganancias['snacks'], 2, '.', '')], ';');
+            fputcsv($handle, ['Golosinas', number_format($ganancias['golosinas'], 2, '.', '')], ';');
+            fputcsv($handle, ['Galletas', number_format($ganancias['galletas'], 2, '.', '')], ';');
+            fputcsv($handle, ['TOTAL SEMANAL', number_format($totalSemanal, 2, '.', '')], ';');
+            fputcsv($handle, [], ';');
+            fputcsv($handle, ['DETALLE DE CONSUMOS DE LA SEMANA'], ';');
+            fputcsv($handle, ['Fecha y Hora', 'DNI Estudiante', 'Pedido', 'Estado', 'Monto (S/.)'], ';');
+
+            foreach ($consumos as $consumo) {
+                $dni = $consumo->dni_estudiante ?? optional($consumo->estudiante)->dni ?? '';
+                fputcsv($handle, [
+                    \Carbon\Carbon::parse($consumo->created_at)->setTimezone('America/Lima')->format('d/m/Y H:i'),
+                    $dni,
+                    (string) ($consumo->pedido ?? ''),
+                    (string) ($consumo->estado ?? 'registrado'),
+                    number_format((float) ($consumo->precio ?? 0), 2, '.', ''),
+                ], ';');
+            }
+
+            fclose($handle);
+        }, $nombreArchivo, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    })->name('admin.ganancias.exportar');
+
     // Monitor de Pedidos del Encargado
     Route::get('/monitor-pedidos', function () {
         return view('monitor-pedidos');

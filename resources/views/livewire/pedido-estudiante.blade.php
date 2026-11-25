@@ -141,7 +141,7 @@
                     <p class="text-sm font-semibold">No hay productos disponibles en {{ $categoriaKioscoActiva }}.</p>
                 </div>
             @else
-                <div class="max-h-[450px] overflow-y-auto pr-2">
+                <div class="max-h-[250px] overflow-y-auto pr-2">
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                         @foreach($productosKiosco as $prod)
                             <div class="border border-gray-200 rounded-xl p-4 bg-gradient-to-br from-gray-50/60 to-white shadow-sm flex flex-col justify-between">

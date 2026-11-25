@@ -141,50 +141,52 @@
                     <p class="text-sm font-semibold">No hay productos disponibles en {{ $categoriaKioscoActiva }}.</p>
                 </div>
             @else
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    @foreach($productosKiosco as $prod)
-                        <div class="border border-gray-200 rounded-xl p-4 bg-gradient-to-br from-gray-50/60 to-white shadow-sm flex flex-col justify-between">
-                            <div>
-                                <div class="flex justify-between items-center mb-2 gap-2">
-                                    <span class="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800">
-                                        {{ $prod->categoria }}
-                                    </span>
+                <div class="max-h-[450px] overflow-y-auto pr-2">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        @foreach($productosKiosco as $prod)
+                            <div class="border border-gray-200 rounded-xl p-4 bg-gradient-to-br from-gray-50/60 to-white shadow-sm flex flex-col justify-between">
+                                <div>
+                                    <div class="flex justify-between items-center mb-2 gap-2">
+                                        <span class="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                                            {{ $prod->categoria }}
+                                        </span>
 
+                                        @if((int) $prod->stock > 0)
+                                            <span class="inline-flex items-center text-xs font-bold text-green-600">
+                                                <span class="w-2 h-2 mr-1.5 bg-green-500 rounded-full animate-pulse"></span> Disponible
+                                            </span>
+                                        @else
+                                            <span class="inline-flex items-center text-xs font-bold text-red-500">
+                                                ❌ Agotado
+                                            </span>
+                                        @endif
+                                    </div>
+
+                                    <h3 class="text-base font-extrabold text-gray-800 mb-1">{{ $prod->nombre }}</h3>
+                                    <div class="text-amber-700 font-black text-sm mb-2">
+                                        Precio: S/. {{ number_format((float) $prod->precio, 2) }}
+                                    </div>
+                                    <p class="text-xs text-gray-600 mb-4">
+                                        Stock disponible: <span class="font-extrabold text-amber-700 text-sm">{{ $prod->stock }}</span>
+                                    </p>
+                                </div>
+
+                                <div>
                                     @if((int) $prod->stock > 0)
-                                        <span class="inline-flex items-center text-xs font-bold text-green-600">
-                                            <span class="w-2 h-2 mr-1.5 bg-green-500 rounded-full animate-pulse"></span> Disponible
-                                        </span>
+                                        <button type="button"
+                                                wire:click="agregarProductoKiosco({{ $prod->id }})"
+                                                class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-2.5 px-4 rounded-xl text-xs transition shadow-sm flex items-center justify-center gap-2 cursor-pointer">
+                                            <span>🛒</span> Agregar al Pedido
+                                        </button>
                                     @else
-                                        <span class="inline-flex items-center text-xs font-bold text-red-500">
-                                            ❌ Agotado
-                                        </span>
+                                        <button disabled class="w-full bg-gray-200 text-gray-400 font-bold py-2.5 px-4 rounded-xl text-xs cursor-not-allowed">
+                                            Sin Stock Disponible
+                                        </button>
                                     @endif
                                 </div>
-
-                                <h3 class="text-base font-extrabold text-gray-800 mb-1">{{ $prod->nombre }}</h3>
-                                <div class="text-amber-700 font-black text-sm mb-2">
-                                    Precio: S/. {{ number_format((float) $prod->precio, 2) }}
-                                </div>
-                                <p class="text-xs text-gray-600 mb-4">
-                                    Stock disponible: <span class="font-extrabold text-amber-700 text-sm">{{ $prod->stock }}</span>
-                                </p>
                             </div>
-
-                            <div>
-                                @if((int) $prod->stock > 0)
-                                    <button type="button"
-                                            wire:click="agregarProductoKiosco({{ $prod->id }})"
-                                            class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-2.5 px-4 rounded-xl text-xs transition shadow-sm flex items-center justify-center gap-2 cursor-pointer">
-                                        <span>🛒</span> Agregar al Pedido
-                                    </button>
-                                @else
-                                    <button disabled class="w-full bg-gray-200 text-gray-400 font-bold py-2.5 px-4 rounded-xl text-xs cursor-not-allowed">
-                                        Sin Stock Disponible
-                                    </button>
-                                @endif
-                            </div>
-                        </div>
-                    @endforeach
+                        @endforeach
+                    </div>
                 </div>
             @endif
         </div>

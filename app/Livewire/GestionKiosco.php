@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Models\ProductoKiosco;
+use Illuminate\Support\Str;
 use Livewire\Component;
 
 class GestionKiosco extends Component
@@ -92,12 +93,38 @@ class GestionKiosco extends Component
         }
     }
 
+    public function obtenerImagenProducto(string $nombreProducto, string $categoria): string
+    {
+        $limpio = Str::of($nombreProducto)
+            ->ascii()
+            ->lower()
+            ->replace([' ', '-', '_'], '')
+            ->toString();
+
+        $rutaProducto = "images/kiosco/{$limpio}.jpg";
+        if (file_exists(public_path($rutaProducto))) {
+            return asset($rutaProducto);
+        }
+
+        $catSlug = Str::of($categoria)->ascii()->lower()->toString();
+        $rutaCategoria = "images/kiosco/{$catSlug}.jpg";
+        if (file_exists(public_path($rutaCategoria))) {
+            return asset($rutaCategoria);
+        }
+
+        return '';
+    }
+
     public function render()
     {
         $productos = ProductoKiosco::where('activo', true)
             ->where('categoria', $this->categoriaActiva)
             ->orderBy('nombre')
-            ->get();
+            ->get()
+            ->map(function ($prod) {
+                $prod->imagen_url = $this->obtenerImagenProducto($prod->nombre, $prod->categoria);
+                return $prod;
+            });
 
         foreach ($productos as $prod) {
             if (!array_key_exists($prod->id, $this->cantidadAgregar)) {
@@ -112,9 +139,17 @@ class GestionKiosco extends Component
             'Galletas'  => ProductoKiosco::where('activo', true)->where('categoria', 'Galletas')->count(),
         ];
 
+        $imagenesCategorias = [];
+        foreach ($this->categorias as $cat) {
+            $slug = Str::of($cat)->ascii()->lower()->toString();
+            $ruta = "images/kiosco/{$slug}.jpg";
+            $imagenesCategorias[$cat] = file_exists(public_path($ruta)) ? asset($ruta) : null;
+        }
+
         return view('livewire.gestion-kiosco', [
-            'productos' => $productos,
-            'conteos'   => $conteos,
+            'productos'          => $productos,
+            'conteos'            => $conteos,
+            'imagenesCategorias' => $imagenesCategorias,
         ]);
     }
 }

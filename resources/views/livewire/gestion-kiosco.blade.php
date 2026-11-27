@@ -40,12 +40,21 @@
     @endphp
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3.5 mb-6">
         @foreach ($categorias as $cat)
-            @php $activa = ($categoriaActiva === $cat); @endphp
+            @php
+                $activa = ($categoriaActiva === $cat);
+                $imgCat = $imagenesCategorias[$cat] ?? null;
+            @endphp
             <button type="button"
                     wire:click="seleccionarCategoria('{{ $cat }}')"
                     class="p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between {{ $activa ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-lg shadow-amber-500/25 font-black' : 'bg-slate-900/90 text-slate-200 border-slate-800 hover:border-slate-700 font-bold' }}">
                 <div class="flex items-center gap-3">
-                    <span class="text-2xl">{{ $iconos[$cat] ?? '🛒' }}</span>
+                    @if ($imgCat)
+                        <img src="{{ $imgCat }}"
+                             alt="{{ $cat }}"
+                             class="w-9 h-9 rounded-xl object-cover bg-slate-950/30 border border-white/10 shrink-0">
+                    @else
+                        <span class="text-2xl">{{ $iconos[$cat] ?? '🛒' }}</span>
+                    @endif
                     <span class="text-sm uppercase tracking-wider">{{ $cat }}</span>
                 </div>
                 <span class="px-2.5 py-1 rounded-xl text-xs font-mono font-black {{ $activa ? 'bg-slate-950/20 text-slate-950' : 'bg-slate-800 text-amber-400' }}">
@@ -115,7 +124,13 @@
         <div class="lg:col-span-8 bg-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-2xl">
             <div class="flex items-center justify-between mb-5 pb-3 border-b border-slate-800">
                 <div class="flex items-center gap-3">
-                    <span class="text-2xl">{{ $iconos[$categoriaActiva] ?? '🛒' }}</span>
+                    @if (!empty($imagenesCategorias[$categoriaActiva]))
+                        <img src="{{ $imagenesCategorias[$categoriaActiva] }}"
+                             alt="{{ $categoriaActiva }}"
+                             class="w-10 h-10 rounded-xl object-cover border border-slate-700 shrink-0">
+                    @else
+                        <span class="text-2xl">{{ $iconos[$categoriaActiva] ?? '🛒' }}</span>
+                    @endif
                     <div>
                         <h2 class="text-xl font-black text-white">{{ $categoriaActiva }}</h2>
                         <p class="text-xs text-slate-400">Mostrando únicamente los productos de {{ $categoriaActiva }}</p>
@@ -136,6 +151,14 @@
                     @foreach ($productos as $prod)
                         <div class="bg-slate-950/90 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between gap-4 hover:border-amber-500/40 transition">
                             <div>
+                                @if ($prod->imagen_url)
+                                    <div class="w-full h-32 mb-3 rounded-xl bg-slate-900/90 border border-slate-800/80 flex items-center justify-center overflow-hidden p-2">
+                                        <img src="{{ $prod->imagen_url }}"
+                                             alt="{{ $prod->nombre }}"
+                                             class="h-full w-full object-contain">
+                                    </div>
+                                @endif
+
                                 <div class="flex items-center justify-between gap-2">
                                     <span class="text-[11px] font-mono uppercase text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-lg">
                                         {{ $prod->categoria }}

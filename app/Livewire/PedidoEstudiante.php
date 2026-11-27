@@ -9,6 +9,7 @@ use App\Models\ProductoKiosco;
 use App\Models\Consumo;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class PedidoEstudiante extends Component
 {
@@ -20,6 +21,42 @@ class PedidoEstudiante extends Component
     public bool $kioscoAbierto = false; // Solo true cuando se presiona el botón Kiosco
     public string $categoriaKioscoActiva = 'Bebidas';
     public array $categoriasKiosco = ['Bebidas', 'Golosinas', 'Snacks', 'Galletas'];
+
+    private function buscarArchivoImagenKiosco(string $baseSinExtension): ?string
+    {
+        $extensiones = ['jpg', 'jpeg', 'png', 'webp'];
+
+        foreach ($extensiones as $ext) {
+            $rutaRelativa = "images/kiosco/{$baseSinExtension}.{$ext}";
+            if (file_exists(public_path($rutaRelativa))) {
+                return asset($rutaRelativa);
+            }
+        }
+
+        return null;
+    }
+
+    public function obtenerImagenProductoKiosco(string $nombreProducto, string $categoria): string
+    {
+        $limpio = Str::of($nombreProducto)
+            ->ascii()
+            ->lower()
+            ->replace([' ', '-', '_'], '')
+            ->toString();
+
+        $imagenProducto = $this->buscarArchivoImagenKiosco($limpio);
+        if ($imagenProducto) {
+            return $imagenProducto;
+        }
+
+        $catSlug = Str::of($categoria)->ascii()->lower()->toString();
+        $imagenCategoria = $this->buscarArchivoImagenKiosco($catSlug);
+        if ($imagenCategoria) {
+            return $imagenCategoria;
+        }
+
+        return '';
+    }
 
     private function turnoPermitidoParaPedir(?string $horaActual = null): ?string
     {
@@ -534,14 +571,25 @@ class PedidoEstudiante extends Component
                 ->where('categoria', $this->categoriaKioscoActiva)
                 ->orderBy('nombre')
                 ->get()
+                ->map(function ($prod) {
+                    $prod->imagen_url = $this->obtenerImagenProductoKiosco($prod->nombre, $prod->categoria);
+                    return $prod;
+                })
             : collect();
 
+        $imagenesCategoriasKiosco = [];
+        foreach ($this->categoriasKiosco as $catKiosco) {
+            $catSlug = Str::of($catKiosco)->ascii()->lower()->toString();
+            $imagenesCategoriasKiosco[$catKiosco] = $this->buscarArchivoImagenKiosco($catSlug);
+        }
+
         return view('livewire.pedido-estudiante', [
-            'insumos'              => $insumos,
-            'productosKiosco'      => $productosKiosco,
-            'turnoVisible'         => $turnoVisible,
-            'puedePedir'           => $puedePedir,
-            'tieneMenuSeleccionado'=> $this->tieneMenuPrincipalSeleccionado(),
+            'insumos'                  => $insumos,
+            'productosKiosco'          => $productosKiosco,
+            'imagenesCategoriasKiosco' => $imagenesCategoriasKiosco,
+            'turnoVisible'             => $turnoVisible,
+            'puedePedir'               => $puedePedir,
+            'tieneMenuSeleccionado'    => $this->tieneMenuPrincipalSeleccionado(),
         ]);
     }
 }

@@ -109,24 +109,40 @@
                 'Snacks'    => '🥨',
                 'Galletas'  => '🍪',
             ];
+            $imgCatActiva = $imagenesCategoriasKiosco[$categoriaKioscoActiva] ?? null;
         @endphp
 
         <div class="bg-white rounded-2xl border p-6 shadow-sm mb-8">
             <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
                 @foreach($categoriasKiosco as $catKiosco)
-                    @php $activaKiosco = ($categoriaKioscoActiva === $catKiosco); @endphp
+                    @php
+                        $activaKiosco = ($categoriaKioscoActiva === $catKiosco);
+                        $imgCatBtn = $imagenesCategoriasKiosco[$catKiosco] ?? null;
+                    @endphp
                     <button type="button"
                             wire:click="seleccionarCategoriaKiosco('{{ $catKiosco }}')"
                             class="p-3.5 rounded-xl border transition cursor-pointer flex items-center justify-center gap-2 text-xs font-black uppercase tracking-wider {{ $activaKiosco ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-sm' : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100' }}">
-                        <span class="text-lg">{{ $iconosKiosco[$catKiosco] ?? '🛒' }}</span>
+                        @if($imgCatBtn)
+                            <img src="{{ $imgCatBtn }}"
+                                 alt="{{ $catKiosco }}"
+                                 class="w-7 h-7 rounded-lg object-cover bg-white border border-black/10 shrink-0">
+                        @else
+                            <span class="text-lg">{{ $iconosKiosco[$catKiosco] ?? '🛒' }}</span>
+                        @endif
                         <span>{{ $catKiosco }}</span>
                     </button>
                 @endforeach
             </div>
 
             <div class="flex items-center justify-between mb-4 pb-3 border-b border-gray-100">
-                <div class="flex items-center gap-2">
-                    <span class="text-xl">{{ $iconosKiosco[$categoriaKioscoActiva] ?? '🛒' }}</span>
+                <div class="flex items-center gap-2.5">
+                    @if($imgCatActiva)
+                        <img src="{{ $imgCatActiva }}"
+                             alt="{{ $categoriaKioscoActiva }}"
+                             class="w-9 h-9 rounded-xl object-cover border border-gray-200 shrink-0">
+                    @else
+                        <span class="text-xl">{{ $iconosKiosco[$categoriaKioscoActiva] ?? '🛒' }}</span>
+                    @endif
                     <h4 class="text-base font-black uppercase tracking-wider text-gray-900">
                         {{ $categoriaKioscoActiva }}
                     </h4>
@@ -141,11 +157,19 @@
                     <p class="text-sm font-semibold">No hay productos disponibles en {{ $categoriaKioscoActiva }}.</p>
                 </div>
             @else
-                <div class="max-h-[250px] overflow-y-auto pr-2">
+                <div class="max-h-[420px] overflow-y-auto pr-2">
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                         @foreach($productosKiosco as $prod)
                             <div class="border border-gray-200 rounded-xl p-4 bg-gradient-to-br from-gray-50/60 to-white shadow-sm flex flex-col justify-between">
                                 <div>
+                                    @if(!empty($prod->imagen_url))
+                                        <div class="w-full h-28 mb-3 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center overflow-hidden p-2">
+                                            <img src="{{ $prod->imagen_url }}"
+                                                 alt="{{ $prod->nombre }}"
+                                                 class="h-full w-full object-contain">
+                                        </div>
+                                    @endif
+
                                     <div class="flex justify-between items-center mb-2 gap-2">
                                         <span class="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800">
                                             {{ $prod->categoria }}
